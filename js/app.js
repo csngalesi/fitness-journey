@@ -78,6 +78,10 @@
             if (viewId === 'photo-view' && window.PhotoModule) {
                 window.PhotoModule.render();
             }
+            // If navigating to workout and the module exists, init it
+            if (viewId === 'workout-view' && window.WorkoutModule) {
+                window.WorkoutModule.render();
+            }
         },
 
         bindEvents() {
@@ -122,6 +126,8 @@
                 card.addEventListener('click', (e) => {
                     if (card.classList.contains('photo')) {
                         this.navigateTo('photo-view');
+                    } else if (card.classList.contains('workout')) {
+                        this.navigateTo('workout-view');
                     } else {
                         const type = card.classList.contains('survival') ? 'survival' :
                             card.classList.contains('cardio') ? 'cardio' : 'learn';
@@ -154,6 +160,7 @@
             // View Routing Buttons
             document.getElementById('btn-goto-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
             document.getElementById('nav-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
+            document.getElementById('nav-workout')?.addEventListener('click', () => this.navigateTo('workout-view'));
 
             const goBackToDash = () => {
                 this.navigateTo('dashboard-view');
@@ -162,6 +169,7 @@
 
             document.getElementById('btn-back-dash')?.addEventListener('click', goBackToDash);
             document.getElementById('btn-back-dash-photo')?.addEventListener('click', goBackToDash);
+            document.getElementById('btn-back-dash-workout')?.addEventListener('click', goBackToDash);
             document.querySelector('.nav-item.active')?.addEventListener('click', () => {
                 this.navigateTo('dashboard-view');
                 this.animateRings();
