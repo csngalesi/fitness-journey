@@ -11,8 +11,38 @@
             entries: []
         },
 
-        render() {
+        async render() {
             const container = document.getElementById('photo-content-area');
+            container.innerHTML = `<p style="text-align:center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Baixando galeria sincronizada com a nuvem...</p>`;
+
+            try {
+                const { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (user) {
+                    const { data: logs, error } = await window.supabaseClient
+                        .from('evolution_logs')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('log_date', { ascending: false });
+
+                    if (logs) {
+                        const entriesMap = {};
+                        logs.forEach(log => {
+                            const key = log.log_date;
+                            if (!entriesMap[key]) {
+                                entriesMap[key] = { title: log.title, date: log.log_date, images: [] };
+                            }
+                            entriesMap[key].images.push({
+                                bf: log.bf_percentage,
+                                weight: log.weight_kg,
+                                url: log.image_url
+                            });
+                        });
+                        this.state.entries = Object.values(entriesMap).sort((a, b) => new Date(b.date) - new Date(a.date));
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not fetch photo logs:", err);
+            }
 
             container.innerHTML = `
                 <div class="macro-summary mb-3" style="font-size: 0.9rem; text-align: center;">
@@ -85,6 +115,7 @@
                             const imgWeight = baseWeight + (Math.random() * 0.2 - 0.1);
 
                             stagedImages.push({
+                                file: file,
                                 bf: parseFloat(imgBf.toFixed(1)),
                                 weight: parseFloat(imgWeight.toFixed(1)),
                                 url: url
@@ -124,29 +155,62 @@
                 <button class="btn mt-2" id="btn-cancel-staging" style="width: 100%; padding: 0.5rem; background: transparent; border: 1px solid var(--glass-border); color: var(--text-muted);">Cancelar</button>
             `;
 
-            document.getElementById('btn-save-record').addEventListener('click', () => {
+            document.getElementById('btn-save-record').addEventListener('click', async () => {
                 const s = this.state.staging;
-                let entry = this.state.entries.find(e => e.date === s.date);
-                if (!entry) {
-                    entry = { title: s.title, date: s.date, images: [] };
-                    this.state.entries.push(entry);
-                } else if (s.title !== 'Avaliação Física') {
-                    entry.title = s.title; // Update title if provided
+                const btnSave = document.getElementById('btn-save-record');
+                btnSave.disabled = true;
+                btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Armazenando e Processando...';
+
+                try {
+                    const { data: { user } } = await window.supabaseClient.auth.getUser();
+                    if (!user) throw new Error("Usuário não logado");
+
+                    // Process each image sequentially (could be parallelized, but simpler to track progress)
+                    for (const img of s.images) {
+                        const fileExt = img.file.name.split('.').pop();
+                        const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+                        // Upload to Storage
+                        const { error: uploadError, data: uploadData } = await window.supabaseClient.storage
+                            .from('evolution_photos')
+                            .upload(fileName, img.file);
+
+                        if (uploadError) throw uploadError;
+
+                        // Get Public URL
+                        const { data: urlData } = window.supabaseClient.storage
+                            .from('evolution_photos')
+                            .getPublicUrl(fileName);
+
+                        const publicUrl = urlData.publicUrl;
+
+                        // Insert into evolution_logs
+                        const { error: dbError } = await window.supabaseClient
+                            .from('evolution_logs')
+                            .insert([{
+                                user_id: user.id,
+                                log_date: s.date,
+                                title: s.title,
+                                bf_percentage: img.bf,
+                                weight_kg: img.weight,
+                                image_url: publicUrl
+                            }]);
+
+                        if (dbError) throw dbError;
+                    }
+
+                    // Reset and refresh data from Supabase to show real URLs
+                    this.state.staging = null;
+                    document.getElementById('photo-title').value = '';
+                    document.getElementById('file-input').value = '';
+                    document.getElementById('btn-upload-photo').disabled = false;
+
+                    await this.render(); // Refetches all logs and redraws entire screen
+                } catch (err) {
+                    alert("Erro ao salvar fotos: " + err.message);
+                    btnSave.disabled = false;
+                    btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar Registro Clínico';
                 }
-
-                entry.images.push(...s.images);
-
-                // Sort by date descending
-                this.state.entries.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                // Reset
-                this.state.staging = null;
-                document.getElementById('photo-title').value = '';
-                document.getElementById('file-input').value = '';
-                document.getElementById('btn-upload-photo').disabled = false;
-
-                this.renderStaging();
-                this.renderGallery();
             });
 
             document.getElementById('btn-cancel-staging').addEventListener('click', () => {
