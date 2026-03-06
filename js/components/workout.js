@@ -22,8 +22,32 @@
             simulatedVolumes: null // Store new volumes simulation
         },
 
-        render() {
+        async render() {
             const container = document.getElementById('workout-content-area');
+            container.innerHTML = `<p style="text-align:center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Carregando suas prescrições no banco de dados...</p>`;
+
+            try {
+                const { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (user) {
+                    // Fetch Architect Config
+                    const { data: archData } = await window.supabaseClient
+                        .from('physique_architect')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('updated_at', { ascending: false })
+                        .limit(1)
+                        .single();
+
+                    if (archData) {
+                        if (archData.master_prompt) this.state.targetPhysique = archData.master_prompt;
+                        if (archData.weekly_volumes_json && archData.weekly_volumes_json.length > 0) {
+                            this.state.simulatedVolumes = archData.weekly_volumes_json;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not fetch workout config:", err);
+            }
 
             container.innerHTML = `
                 <!-- Tabs Navigation -->
@@ -56,7 +80,7 @@
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
                         A Inteligência Artificial ajustará o seu Volume Semanal (número de séries) para esculpir as proporções abaixo, realocando esforço dos grupos fortes para as deficiências.
                     </p>
-                    <textarea class="form-control" rows="4" style="background: var(--bg-card); font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; border: 1px dashed var(--glass-border);">Quero o físico estético do Frank Zane. Foco máximo na silhueta (V-Shape): peitoral superior bem marcado, ombros largos e arredondados, dorsais densas e um abdômen core trabalhado. Atualmente sinto que meus braços respondem rápido, então posso colocar em volume de manutenção para focar nos ombros.</textarea>
+                    <textarea id="physique-prompt" class="form-control" rows="4" style="background: var(--bg-card); font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; border: 1px dashed var(--glass-border);">${this.state.targetPhysique}</textarea>
                     
                     <button class="btn btn-primary mt-3" id="btn-recalc-volumes" style="width: 100%;">
                         <i class="fa-solid fa-wand-magic-sparkles"></i> Recalcular Volumes (Ajuste Mensal)
@@ -168,7 +192,7 @@
                     `).join('')}
                 </div>
                 
-                <button class="btn btn-primary mt-4" style="width: 100%; padding: 1rem; background: #28a745; border-color: #28a745;">
+                <button class="btn btn-primary mt-4" id="btn-complete-workout" style="width: 100%; padding: 1rem; background: #28a745; border-color: #28a745;">
                     <i class="fa-solid fa-flag-checkered"></i> Concluir Treino (Salvar Histórico)
                 </button>
             `;
@@ -197,17 +221,67 @@
                     dash.style.opacity = '0.3';
 
                     // Simulate AI Generation Payload based on Zane prompt
-                    setTimeout(() => {
-                        this.state.simulatedVolumes = [
+                    setTimeout(async () => {
+                        const promptText = document.getElementById('physique-prompt').value;
+                        const newVolumes = [
                             { muscle: 'Ombros (Foco Lateral)', label: 'Ultra Vol', sets: 24, color: '#ff4b2b', pillStyle: 'background: #ff4b2b; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
                             { muscle: 'Dorsal (Asa / Expansão)', label: 'Alto Vol', sets: 20, color: 'var(--primary)', pillStyle: 'background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
                             { muscle: 'Peitoral Superior', label: 'Alto Vol', sets: 18, color: 'var(--primary)', pillStyle: 'background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
-                            { muscle: 'Abdômen Foco Core', label: 'Vol Médio', sets: 12, color: 'var(--macro-pro)', pillStyle: 'background: var(--macro-pro); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
-                            { muscle: 'Pernas & Braços', label: 'Manutenção', sets: 8, color: 'var(--text-muted)', pillStyle: 'color: var(--text-muted); padding: 2px 8px; font-size: 0.75rem; font-weight: bold; border: 1px solid var(--glass-border); border-radius: 12px;' }
+                            { muscle: 'Abdômen Foco Core', label: 'Vol Médio', intValue: 12, sets: 12, color: 'var(--macro-pro)', pillStyle: 'background: var(--macro-pro); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
+                            { muscle: 'Pernas & Braços', label: 'Manutenção', intValue: 8, sets: 8, color: 'var(--text-muted)', pillStyle: 'color: var(--text-muted); padding: 2px 8px; font-size: 0.75rem; font-weight: bold; border: 1px solid var(--glass-border); border-radius: 12px;' }
                         ];
+
+                        this.state.simulatedVolumes = newVolumes;
+                        this.state.targetPhysique = promptText;
+
+                        try {
+                            const { data: { user } } = await window.supabaseClient.auth.getUser();
+                            if (user) {
+                                await window.supabaseClient.from('physique_architect').insert([{
+                                    user_id: user.id,
+                                    master_prompt: promptText,
+                                    weekly_volumes_json: newVolumes
+                                }]);
+                            }
+                        } catch (e) {
+                            console.error("Erro ao salvar Architect no Supabase:", e);
+                        }
 
                         this.render(); // Re-render tab with new simulation
                     }, 2500);
+                });
+            }
+
+            const btnComplete = document.getElementById('btn-complete-workout');
+            if (btnComplete) {
+                btnComplete.addEventListener('click', async () => {
+                    // For MVP prototype: We capture the hardcoded dailyWorkout as the execution
+                    btnComplete.disabled = true;
+                    btnComplete.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Armazenando Progressão...';
+
+                    try {
+                        const { data: { user } } = await window.supabaseClient.auth.getUser();
+                        if (!user) throw new Error("Usuário não logado");
+
+                        const { error } = await window.supabaseClient
+                            .from('workout_executions')
+                            .insert([{
+                                user_id: user.id,
+                                log_date: new Date().toISOString().split('T')[0],
+                                workout_title: this.state.dailyWorkout.title,
+                                exercises_log_json: this.state.dailyWorkout.exercises
+                            }]);
+
+                        if (error) throw error;
+
+                        btnComplete.innerHTML = '<i class="fa-solid fa-check"></i> Histórico de Sobrecarga Salvo!';
+                        btnComplete.style.background = '#28a745';
+                        setTimeout(() => this.render(), 2000);
+                    } catch (err) {
+                        alert("Erro ao salvar: " + err.message);
+                        btnComplete.disabled = false;
+                        btnComplete.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Concluir Treino (Salvar Histórico)';
+                    }
                 });
             }
         }
