@@ -45,6 +45,9 @@
             document.getElementById('main-view').style.display = 'block';
             document.getElementById('bottom-nav').style.display = 'flex';
 
+            // Reset to dashboard view
+            this.navigateTo('dashboard-view');
+
             // Basic User UI
             if (user && user.email) {
                 const firstLetter = user.email.charAt(0).toUpperCase();
@@ -53,6 +56,24 @@
             }
 
             this.animateRings();
+        },
+
+        navigateTo(viewId) {
+            // Hide all views inside main
+            const views = document.querySelectorAll('#main-view > div');
+            views.forEach(v => v.style.display = 'none');
+
+            // Show target
+            const target = document.getElementById(viewId);
+            if (target) {
+                target.style.display = 'block';
+            }
+            window.scrollTo(0, 0);
+
+            // If navigating to nutrition and the module exists, init it
+            if (viewId === 'nutrition-view' && window.NutritionModule) {
+                window.NutritionModule.render();
+            }
         },
 
         bindEvents() {
@@ -118,9 +139,23 @@
             if (fab) {
                 fab.addEventListener('click', (e) => {
                     e.preventDefault();
-                    alert("Opening Quick Add Menu:\n- Log Meal\n- Start Workout\n- Take Photo");
+                    // Temporary route to Nutrition
+                    this.navigateTo('nutrition-view');
                 });
             }
+
+            // View Routing Buttons
+            document.getElementById('btn-goto-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
+            document.getElementById('nav-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
+
+            document.getElementById('btn-back-dash')?.addEventListener('click', () => {
+                this.navigateTo('dashboard-view');
+                this.animateRings(); // Reanimate rings when coming back
+            });
+            document.querySelector('.nav-item.active')?.addEventListener('click', () => {
+                this.navigateTo('dashboard-view');
+                this.animateRings();
+            });
         },
 
         animateRings() {
