@@ -86,6 +86,10 @@
             if (viewId === 'cardio-view' && window.CardioModule) {
                 window.CardioModule.render();
             }
+            // If navigating to profile and the module exists, init it
+            if (viewId === 'profile-view' && window.ProfileModule) {
+                window.ProfileModule.render();
+            }
         },
 
         bindEvents() {
@@ -174,6 +178,7 @@
             document.getElementById('btn-goto-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
             document.getElementById('nav-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
             document.getElementById('nav-workout')?.addEventListener('click', () => this.navigateTo('workout-view'));
+            document.getElementById('nav-profile')?.addEventListener('click', () => this.navigateTo('profile-view'));
             document.getElementById('nav-home')?.addEventListener('click', () => {
                 this.navigateTo('dashboard-view');
                 this.animateRings();
@@ -188,6 +193,7 @@
             document.getElementById('btn-back-dash-photo')?.addEventListener('click', goBackToDash);
             document.getElementById('btn-back-dash-workout')?.addEventListener('click', goBackToDash);
             document.getElementById('btn-back-dash-cardio')?.addEventListener('click', goBackToDash);
+            document.getElementById('btn-back-dash-profile')?.addEventListener('click', goBackToDash);
             document.querySelector('.nav-item.active')?.addEventListener('click', () => {
                 this.navigateTo('dashboard-view');
                 this.animateRings();
