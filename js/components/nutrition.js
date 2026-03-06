@@ -29,17 +29,25 @@
                 </div>
                 
                 <div class="form-group mt-4">
-                    <input type="text" id="meal-desc" class="form-control" placeholder="Descreva a refeição...">
+                    <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">O que você comeu?</label>
+                    <textarea id="meal-desc" class="form-control" rows="3" placeholder='Ex: "Comi 3 ovos mexidos com 2 fatias de pão integral e 1 fatia de queijo prato..."'></textarea>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.8rem; margin-bottom:1.5rem;">
-                    <input type="number" id="meal-cals" class="form-control" placeholder="Kcal totais" style="text-align:center;">
-                    <input type="number" id="meal-pro" class="form-control" placeholder="Pro (g)" style="text-align:center;">
-                    <input type="number" id="meal-carb" class="form-control" placeholder="Carb (g)" style="text-align:center;">
-                    <input type="number" id="meal-fat" class="form-control" placeholder="Gord (g)" style="text-align:center;">
+                
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+                    <button class="btn btn-primary" style="flex: 1;" id="btn-save-meal">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Calcular Macros
+                    </button>
+                    <button class="btn-icon" style="width: 50px; flex-shrink: 0;" title="Enviar Foto" onclick="alert('Feature placeholder: Abrir câmera para Visão Computacional')">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+                    <button class="btn-icon" style="width: 50px; flex-shrink: 0;" title="Ditar Refeição" onclick="alert('Feature placeholder: Iniciar gravação de voz')">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
                 </div>
-                <button class="btn btn-primary btn-block mb-4" id="btn-save-meal">
-                    <i class="fa-solid fa-plus"></i> Registrar Refeição
-                </button>
+                
+                <div id="ai-loading" style="display:none; text-align:center; margin-bottom:1.5rem; color: var(--primary-light);">
+                    <i class="fa-solid fa-robot fa-bounce"></i> Analisando refeição...
+                </div>
                 
                 <h4 class="mt-4 mb-3" style="font-family: var(--font-display);">Meu Diário</h4>
                 <div id="meals-list" style="display:flex; flex-direction:column; gap:0.5rem;">
@@ -54,30 +62,36 @@
             const btnSave = document.getElementById('btn-save-meal');
             btnSave.addEventListener('click', () => {
                 const desc = document.getElementById('meal-desc').value.trim();
-                const cals = parseInt(document.getElementById('meal-cals').value) || 0;
-                const pro = parseInt(document.getElementById('meal-pro').value) || 0;
-                const carb = parseInt(document.getElementById('meal-carb').value) || 0;
-                const fat = parseInt(document.getElementById('meal-fat').value) || 0;
 
                 if (!desc) {
-                    alert("Por favor, descreva a refeição para salvá-la no diário.");
+                    alert("Descreva o que você comeu ou use a foto/áudio.");
                     return;
                 }
 
-                this.state.meals.push({ desc, cals, pro, carb, fat });
-                this.state.consumedCals += cals;
-                this.state.consumedPro += pro;
-                this.state.consumedCarb += carb;
-                this.state.consumedFat += fat;
+                // Simulate AI Processing
+                btnSave.disabled = true;
+                document.getElementById('ai-loading').style.display = 'block';
 
-                // Clear inputs
-                document.getElementById('meal-desc').value = '';
-                document.getElementById('meal-cals').value = '';
-                document.getElementById('meal-pro').value = '';
-                document.getElementById('meal-carb').value = '';
-                document.getElementById('meal-fat').value = '';
+                setTimeout(() => {
+                    // Mock AI extraction results
+                    const cals = Math.floor(Math.random() * 400) + 150;
+                    const pro = Math.floor(Math.random() * 30) + 5;
+                    const carb = Math.floor(Math.random() * 50) + 10;
+                    const fat = Math.floor(Math.random() * 20) + 5;
 
-                this.renderMeals();
+                    this.state.meals.push({ desc: desc.substring(0, 30) + '...', cals, pro, carb, fat });
+                    this.state.consumedCals += cals;
+                    this.state.consumedPro += pro;
+                    this.state.consumedCarb += carb;
+                    this.state.consumedFat += fat;
+
+                    // Restore UI
+                    document.getElementById('meal-desc').value = '';
+                    btnSave.disabled = false;
+                    document.getElementById('ai-loading').style.display = 'none';
+
+                    this.renderMeals();
+                }, 1500);
             });
         },
 
