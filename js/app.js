@@ -82,6 +82,10 @@
             if (viewId === 'workout-view' && window.WorkoutModule) {
                 window.WorkoutModule.render();
             }
+            // If navigating to cardio and the module exists, init it
+            if (viewId === 'cardio-view' && window.CardioModule) {
+                window.CardioModule.render();
+            }
         },
 
         bindEvents() {
@@ -128,9 +132,10 @@
                         this.navigateTo('photo-view');
                     } else if (card.classList.contains('workout')) {
                         this.navigateTo('workout-view');
+                    } else if (card.classList.contains('cardio')) {
+                        this.navigateTo('cardio-view');
                     } else {
-                        const type = card.classList.contains('survival') ? 'survival' :
-                            card.classList.contains('cardio') ? 'cardio' : 'learn';
+                        const type = card.classList.contains('survival') ? 'survival' : 'learn';
 
                         alert(`Opening module: ${type.toUpperCase()}\n(Prototype: Integration pending)`);
                     }
@@ -170,6 +175,7 @@
             document.getElementById('btn-back-dash')?.addEventListener('click', goBackToDash);
             document.getElementById('btn-back-dash-photo')?.addEventListener('click', goBackToDash);
             document.getElementById('btn-back-dash-workout')?.addEventListener('click', goBackToDash);
+            document.getElementById('btn-back-dash-cardio')?.addEventListener('click', goBackToDash);
             document.querySelector('.nav-item.active')?.addEventListener('click', () => {
                 this.navigateTo('dashboard-view');
                 this.animateRings();
