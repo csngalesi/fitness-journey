@@ -16,8 +16,37 @@
             ]
         },
 
-        render() {
+        async render() {
             const container = document.getElementById('cardio-content-area');
+            container.innerHTML = `<p style="text-align:center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Sincronizando Cardiômetro...</p>`;
+
+            try {
+                const { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (user) {
+                    const { data: logs, error } = await window.supabaseClient
+                        .from('mitochondrial_cardio')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('log_date', { ascending: false });
+
+                    if (logs) {
+                        this.state.sessions = logs.map(log => ({
+                            id: log.id,
+                            date: log.log_date,
+                            type: log.modality_type,
+                            modality: log.modality_name || (log.modality_type === 'HIIT' ? 'Alta Intensidade' : 'Baixa Intensidade'),
+                            duration: log.duration_min,
+                            description: log.modality_type === 'LISS' ? 'Steady State' : 'Intervalado',
+                            cals: log.calories
+                        }));
+
+                        this.state.currentWeekly = this.state.sessions.reduce((sum, s) => sum + s.duration, 0);
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not fetch cardio logs:", err);
+            }
+
             const progressPct = Math.min((this.state.currentWeekly / this.state.weeklyGoal) * 100, 100).toFixed(0);
 
             container.innerHTML = `
@@ -41,10 +70,24 @@
                     </div>
                 </div>
 
-                <!-- Action Button Log -->
-                <button class="btn btn-primary" id="btn-add-cardio" style="width: 100%; padding: 1rem; margin-bottom: 2rem; background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%); border: none;">
-                    <i class="fa-solid fa-fire-flame-curved"></i> Inserir Sessão de Cardio
-                </button>
+                <!-- Action Form Log -->
+                <div id="cardio-form-container" style="background: var(--bg-card); padding: 1rem; border-radius: 12px; border: 1px dashed var(--glass-border); margin-bottom: 2rem;">
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <input type="date" id="cardio-date" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="flex: 1;">
+                        <select id="cardio-type" class="form-control" style="flex: 1;">
+                            <option value="LISS">LISS (Caminhada)</option>
+                            <option value="MISS">MISS (Corrida)</option>
+                            <option value="HIIT">HIIT (Tiros)</option>
+                        </select>
+                        <input type="number" id="cardio-duration" class="form-control" placeholder="Min" style="width: 70px;">
+                    </div>
+                    <button class="btn btn-primary" id="btn-save-cardio" style="width: 100%; padding: 0.8rem; background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%); border: none;">
+                        <i class="fa-solid fa-fire-flame-curved"></i> Registrar Sessão
+                    </button>
+                    <div id="cardio-loading" style="display:none; text-align:center; color: var(--primary-light); font-size: 0.8rem; margin-top: 0.5rem;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Registrando no servidor...
+                    </div>
+                </div>
 
                 <!-- History Log -->
                 <h4 class="mb-3" style="font-family: var(--font-display);">Histórico da Semana</h4>
@@ -92,10 +135,51 @@
         },
 
         bindEvents() {
-            const btnAdd = document.getElementById('btn-add-cardio');
-            if (btnAdd) {
-                btnAdd.addEventListener('click', () => {
-                    alert('Nesta tela você registrará o LISS (esteira com inclinação), HIIT (tiros na bike) ou MISS (corrida contínua), e os minutos subirão para barra da meta semanal. Vamos prototipar a inclusão na integração de backend!');
+            const btnSave = document.getElementById('btn-save-cardio');
+            if (btnSave) {
+                btnSave.addEventListener('click', async () => {
+                    const duration = parseInt(document.getElementById('cardio-duration').value);
+                    const type = document.getElementById('cardio-type').value;
+                    const date = document.getElementById('cardio-date').value;
+
+                    if (!duration || duration <= 0) {
+                        alert("Por favor, preencha a duração em minutos.");
+                        return;
+                    }
+
+                    btnSave.disabled = true;
+                    document.getElementById('cardio-loading').style.display = 'block';
+
+                    try {
+                        const { data: { user } } = await window.supabaseClient.auth.getUser();
+                        if (!user) throw new Error("Usuário não logado");
+
+                        let calMultiplier = 5;
+                        if (type === 'MISS') calMultiplier = 10;
+                        if (type === 'HIIT') calMultiplier = 15;
+                        const calories = duration * calMultiplier;
+
+                        const logObj = {
+                            user_id: user.id,
+                            log_date: date,
+                            modality_type: type,
+                            modality_name: type === 'HIIT' ? 'Sprints' : 'Esteira/Rua',
+                            duration_min: duration,
+                            calories: calories
+                        };
+
+                        const { error } = await window.supabaseClient
+                            .from('mitochondrial_cardio')
+                            .insert([logObj]);
+
+                        if (error) throw error;
+
+                        this.render(); // Re-render everything to update progress bar and history
+                    } catch (err) {
+                        alert("Erro ao salvar cardio: " + err.message);
+                        btnSave.disabled = false;
+                        document.getElementById('cardio-loading').style.display = 'none';
+                    }
                 });
             }
         }
