@@ -7,10 +7,14 @@
 
     const PhotoModule = {
         state: {
-            photos: [
-                // Mock initial data
-                { id: 1, date: '2026-02-01', bf: 18, weight: 82, url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=2070&auto=format&fit=crop' },
-                { id: 2, date: '2026-03-01', bf: 16, weight: 80, url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=2120&auto=format&fit=crop' }
+            entries: [
+                {
+                    date: '2026-03-01',
+                    images: [
+                        { bf: 16.5, weight: 80.2, url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=2120&auto=format&fit=crop' },
+                        { bf: 15.5, weight: 79.8, url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=2070&auto=format&fit=crop' }
+                    ]
+                }
             ]
         },
 
@@ -40,7 +44,7 @@
                 </div>
                 
                 <h4 class="mt-4 mb-3" style="font-family: var(--font-display);">Galeria de Evolução</h4>
-                <div id="gallery-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.8rem;">
+                <div id="gallery-list" style="display:flex; flex-direction:column; gap:1.2rem;">
                 </div>
             `;
 
@@ -64,19 +68,22 @@
                     const bf = document.getElementById('photo-bf').value;
                     const weight = document.getElementById('photo-weight').value;
 
-                    // Create a blob URL to preview the newly added image locally
                     const url = URL.createObjectURL(file);
 
-                    this.state.photos.push({
-                        id: Date.now(),
-                        date: date,
-                        bf: bf ? parseFloat(bf) : '?',
-                        weight: weight ? parseFloat(weight) : '?',
+                    let entry = this.state.entries.find(e => e.date === date);
+                    if (!entry) {
+                        entry = { date: date, images: [] };
+                        this.state.entries.push(entry);
+                    }
+
+                    entry.images.push({
+                        bf: bf ? parseFloat(bf) : null,
+                        weight: weight ? parseFloat(weight) : null,
                         url: url
                     });
 
                     // Sort by date descending
-                    this.state.photos.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    this.state.entries.sort((a, b) => new Date(b.date) - new Date(a.date));
 
                     // Reset form
                     document.getElementById('photo-bf').value = '';
@@ -89,30 +96,57 @@
         },
 
         renderGallery() {
-            const grid = document.getElementById('gallery-grid');
+            const list = document.getElementById('gallery-list');
 
-            if (this.state.photos.length === 0) {
-                grid.innerHTML = `<div style="grid-column: span 2; color:var(--text-muted); font-size:0.8rem; text-align:center; padding: 2rem 0;">Nenhuma foto salva. Não tenha medo de registrar o antes!</div>`;
-                grid.style.display = 'block';
+            if (this.state.entries.length === 0) {
+                list.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding: 2rem 0;">Nenhuma foto salva. Não tenha medo de registrar o antes!</div>`;
                 return;
-            } else {
-                grid.style.display = 'grid';
             }
 
-            grid.innerHTML = this.state.photos.map(p => `
-                <div style="background:var(--bg-dark); border-radius:12px; overflow:hidden; border:1px solid var(--glass-border); display:flex; flex-direction:column;">
-                    <div style="height: 200px; width: 100%; overflow: hidden; background: #000;">
-                        <img src="${p.url}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.9;" alt="Evolução BF">
+            list.innerHTML = this.state.entries.map(entry => {
+                let sumBf = 0, countBf = 0;
+                let sumWeight = 0, countWeight = 0;
+
+                entry.images.forEach(img => {
+                    if (img.bf !== null && !isNaN(img.bf)) { sumBf += img.bf; countBf++; }
+                    if (img.weight !== null && !isNaN(img.weight)) { sumWeight += img.weight; countWeight++; }
+                });
+
+                const avgBf = countBf > 0 ? (sumBf / countBf).toFixed(1) : '?';
+                const avgWeight = countWeight > 0 ? (sumWeight / countWeight).toFixed(1) : '?';
+
+                const imageCount = entry.images.length;
+                const gridCols = Math.min(imageCount, 3);
+
+                return `
+                <div style="background:var(--bg-dark); border-radius:12px; overflow:hidden; border:1px solid var(--glass-border);">
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display:flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--primary); font-weight: bold;"><i class="fa-regular fa-calendar" style="margin-right: 5px;"></i> ${entry.date}</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">${imageCount} foto(s)</span>
                     </div>
-                    <div style="padding: 0.8rem;">
-                        <div style="font-size: 0.8rem; color: var(--primary); font-weight: bold; margin-bottom: 0.2rem;"><i class="fa-regular fa-calendar"></i> ${p.date}</div>
-                        <div style="display:flex; justify-content: space-between; font-size: 0.85rem;">
-                            <span><i class="fa-solid fa-percent" style="color:var(--text-muted)"></i> BF: <strong>${p.bf}${p.bf !== '?' ? '%' : ''}</strong></span>
-                            <span><i class="fa-solid fa-weight-scale" style="color:var(--text-muted)"></i> <strong>${p.weight}${p.weight !== '?' ? 'kg' : ''}</strong></span>
+                    
+                    <div style="display:grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 2px; background: #000;">
+                        ${entry.images.map(img => `
+                            <div style="aspect-ratio: 1/1; overflow:hidden;">
+                                <img src="${img.url}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.9;" alt="Evolução">
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="padding: 1rem; background: var(--bg-card); display:flex; justify-content: space-around; font-size: 0.9rem;">
+                        <div style="text-align:center;">
+                            <div style="color:var(--text-muted); font-size: 0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.2rem;">Média BF</div>
+                            <strong><i class="fa-solid fa-percent" style="color:var(--primary); font-size:0.8rem; margin-right:3px;"></i>${avgBf}${avgBf !== '?' ? '%' : ''}</strong>
+                        </div>
+                        <div style="width: 1px; background: var(--glass-border);"></div>
+                        <div style="text-align:center;">
+                            <div style="color:var(--text-muted); font-size: 0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.2rem;">Média Peso</div>
+                            <strong><i class="fa-solid fa-weight-scale" style="color:var(--primary); font-size:0.8rem; margin-right:3px;"></i>${avgWeight}${avgWeight !== '?' ? 'kg' : ''}</strong>
                         </div>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
     };
 
