@@ -74,6 +74,10 @@
             if (viewId === 'nutrition-view' && window.NutritionModule) {
                 window.NutritionModule.render();
             }
+            // If navigating to photo and the module exists, init it
+            if (viewId === 'photo-view' && window.PhotoModule) {
+                window.PhotoModule.render();
+            }
         },
 
         bindEvents() {
@@ -116,11 +120,14 @@
             // Action cards mapping to routes/modals
             document.querySelectorAll('.action-card').forEach(card => {
                 card.addEventListener('click', (e) => {
-                    const type = card.classList.contains('survival') ? 'survival' :
-                        card.classList.contains('cardio') ? 'cardio' :
-                            card.classList.contains('photo') ? 'photo' : 'learn';
+                    if (card.classList.contains('photo')) {
+                        this.navigateTo('photo-view');
+                    } else {
+                        const type = card.classList.contains('survival') ? 'survival' :
+                            card.classList.contains('cardio') ? 'cardio' : 'learn';
 
-                    alert(`Opening module: ${type.toUpperCase()}\n(Prototype: Integration pending)`);
+                        alert(`Opening module: ${type.toUpperCase()}\n(Prototype: Integration pending)`);
+                    }
                 });
             });
 
@@ -148,10 +155,13 @@
             document.getElementById('btn-goto-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
             document.getElementById('nav-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
 
-            document.getElementById('btn-back-dash')?.addEventListener('click', () => {
+            const goBackToDash = () => {
                 this.navigateTo('dashboard-view');
                 this.animateRings(); // Reanimate rings when coming back
-            });
+            };
+
+            document.getElementById('btn-back-dash')?.addEventListener('click', goBackToDash);
+            document.getElementById('btn-back-dash-photo')?.addEventListener('click', goBackToDash);
             document.querySelector('.nav-item.active')?.addEventListener('click', () => {
                 this.navigateTo('dashboard-view');
                 this.animateRings();
