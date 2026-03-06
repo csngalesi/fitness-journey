@@ -90,6 +90,10 @@
             if (viewId === 'profile-view' && window.ProfileModule) {
                 window.ProfileModule.render();
             }
+            // If navigating to survival and the module exists, init it
+            if (viewId === 'survival-view' && window.SurvivalModule) {
+                window.SurvivalModule.render();
+            }
         },
 
         bindEvents() {
@@ -138,8 +142,10 @@
                         this.navigateTo('workout-view');
                     } else if (card.classList.contains('cardio')) {
                         this.navigateTo('cardio-view');
+                    } else if (card.classList.contains('survival')) {
+                        this.navigateTo('survival-view');
                     } else {
-                        const type = card.classList.contains('survival') ? 'survival' : 'learn';
+                        const type = card.classList.contains('learn') ? 'learn' : 'unknown';
 
                         alert(`Opening module: ${type.toUpperCase()}\n(Prototype: Integration pending)`);
                     }
@@ -194,6 +200,7 @@
             document.getElementById('btn-back-dash-workout')?.addEventListener('click', goBackToDash);
             document.getElementById('btn-back-dash-cardio')?.addEventListener('click', goBackToDash);
             document.getElementById('btn-back-dash-profile')?.addEventListener('click', goBackToDash);
+            document.getElementById('btn-back-dash-survival')?.addEventListener('click', goBackToDash);
             document.querySelector('.nav-item.active')?.addEventListener('click', () => {
                 this.navigateTo('dashboard-view');
                 this.animateRings();
