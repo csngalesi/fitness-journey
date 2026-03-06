@@ -3,8 +3,8 @@
  * Imports Supabase via CDN and configures the client.
  */
 
-const SUPABASE_URL = 'COLE_AQUI_A_URL_DO_PROJETO';
-const SUPABASE_ANON_KEY = 'COLE_AQUI_A_CHAVE_ANON_PUBLICA';
+const SUPABASE_URL = 'https://ieprakamqaldoyaacvcy.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_pZ7GiKEeSxKQ4-uoOxhVEQ_889pcaFl';
 
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
