@@ -16,16 +16,44 @@
             }
         },
 
-        render() {
+        async render() {
             const container = document.getElementById('profile-content-area');
+
+            // Loading state
+            container.innerHTML = `<p style="text-align:center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Carregando matriz biológica da nuvem...</p>`;
+
+            try {
+                // Get Auth User
+                const { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (!user) throw new Error("Não autenticado");
+
+                // Fetch real profile from DB
+                const { data: profile, error } = await window.supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profile) {
+                    this.state.user.name = profile.name || user.email.split('@')[0];
+                    this.state.user.height = profile.height_cm || 182;
+                    this.state.user.age = profile.age || 30;
+                    this.state.user.gender = profile.gender || 'M';
+                    this.state.user.goal = profile.metabolic_goal || 'maintain';
+                } else {
+                    this.state.user.name = user.email.split('@')[0];
+                }
+            } catch (err) {
+                console.warn("Nenhum perfil prévio encontrado ou erro de rede. Usando defaults.", err);
+            }
 
             container.innerHTML = `
                 <div style="text-align: center; margin-bottom: 2rem;">
                     <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #ff4b2b 100%); margin: 0 auto 1rem auto; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: #fff; font-family: var(--font-display); box-shadow: 0 0 15px rgba(255, 65, 108, 0.4);">
-                        ${this.state.user.name.charAt(0)}
+                        ${this.state.user.name.charAt(0).toUpperCase()}
                     </div>
                     <h4 style="margin-bottom: 0.2rem;">${this.state.user.name}</h4>
-                    <span style="color: var(--text-muted); font-size: 0.85rem;">Plano Superávit Estético</span>
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">Sincronizado via Supabase</span>
                 </div>
 
                 <div class="card mb-4" style="border: 1px solid var(--primary-light);">
@@ -69,7 +97,7 @@
                         <i class="fa-solid fa-cloud-arrow-up"></i> Atualizar Matriz Biológica
                     </button>
                     <div id="profile-feedback" style="display:none; text-align:center; color: #28a745; font-size: 0.85rem; margin-top: 0.8rem;">
-                        <i class="fa-solid fa-circle-check"></i> Variáveis salvas! A IA usará estes dados na próxima requisição.
+                        <i class="fa-solid fa-circle-check"></i> 
                     </div>
                 </div>
             `;
@@ -82,24 +110,44 @@
             const feedback = document.getElementById('profile-feedback');
 
             if (btnSave) {
-                btnSave.addEventListener('click', () => {
+                btnSave.addEventListener('click', async () => {
                     this.state.user.height = parseInt(document.getElementById('profile-height').value);
                     this.state.user.age = parseInt(document.getElementById('profile-age').value);
                     this.state.user.gender = document.getElementById('profile-gender').value;
                     this.state.user.goal = document.getElementById('profile-goal').value;
 
-                    // Mock Saving Event
-                    btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Atualizando...';
+                    btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando na nuvem...';
+                    btnSave.disabled = true;
                     feedback.style.display = 'none';
 
-                    setTimeout(() => {
-                        btnSave.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Atualizar Matriz Biológica';
-                        feedback.style.display = 'block';
+                    try {
+                        const { data: { user } } = await window.supabaseClient.auth.getUser();
+                        if (!user) throw new Error("Usuário não logado");
 
-                        setTimeout(() => {
-                            feedback.style.display = 'none';
-                        }, 3000);
-                    }, 800);
+                        const { error } = await window.supabaseClient
+                            .from('profiles')
+                            .upsert({
+                                id: user.id,
+                                name: this.state.user.name,
+                                height_cm: this.state.user.height,
+                                age: this.state.user.age,
+                                gender: this.state.user.gender,
+                                metabolic_goal: this.state.user.goal
+                            });
+
+                        if (error) throw error;
+
+                        feedback.innerHTML = '<i class="fa-solid fa-circle-check"></i> Variáveis sincronizadas no Supabase com sucesso!';
+                        feedback.style.color = '#28a745';
+                    } catch (err) {
+                        feedback.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Erro ao sincronizar: ' + err.message;
+                        feedback.style.color = '#dc3545';
+                    } finally {
+                        btnSave.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Atualizar Matriz Biológica';
+                        btnSave.disabled = false;
+                        feedback.style.display = 'block';
+                        setTimeout(() => { feedback.style.display = 'none'; }, 4000);
+                    }
                 });
             }
         }
