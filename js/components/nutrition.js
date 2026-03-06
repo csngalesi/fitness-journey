@@ -18,8 +18,41 @@
             meals: []
         },
 
-        render() {
+        async render() {
             const container = document.getElementById('nutrition-content-area');
+            container.innerHTML = `<p style="text-align:center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Carregando diário...</p>`;
+
+            try {
+                const { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (user) {
+                    const { data: logs, error } = await window.supabaseClient
+                        .from('nutrition_logs')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: false });
+
+                    if (logs) {
+                        this.state.meals = logs.map(log => ({
+                            id: log.id,
+                            title: log.title,
+                            date: log.log_date,
+                            desc: (log.meals_json && log.meals_json[0]) ? log.meals_json[0].desc : '',
+                            isFullDay: (log.meals_json && log.meals_json[0]) ? log.meals_json[0].isFullDay : false,
+                            cals: log.total_calories || 0,
+                            pro: log.macros_json?.pro || 0,
+                            carb: log.macros_json?.carb || 0,
+                            fat: log.macros_json?.fat || 0
+                        }));
+
+                        this.state.consumedCals = this.state.meals.reduce((sum, m) => sum + m.cals, 0);
+                        this.state.consumedPro = this.state.meals.reduce((sum, m) => sum + m.pro, 0);
+                        this.state.consumedCarb = this.state.meals.reduce((sum, m) => sum + m.carb, 0);
+                        this.state.consumedFat = this.state.meals.reduce((sum, m) => sum + m.fat, 0);
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not fetch nutrition logs:", err);
+            }
 
             // Render basic layout
             container.innerHTML = `
@@ -60,7 +93,7 @@
                 </div>
                 
                 <div id="ai-loading" style="display:none; text-align:center; margin-bottom:1.5rem; color: var(--primary-light);">
-                    <i class="fa-solid fa-robot fa-bounce"></i> Analisando refeição...
+                    <i class="fa-solid fa-robot fa-bounce"></i> Analisando e Salvando...
                 </div>
                 
                 <h4 class="mt-4 mb-3" style="font-family: var(--font-display);">Meu Diário</h4>
@@ -74,7 +107,7 @@
 
         bindEvents() {
             const btnSave = document.getElementById('btn-save-meal');
-            btnSave.addEventListener('click', () => {
+            btnSave.addEventListener('click', async () => {
                 const title = document.getElementById('log-title').value.trim() || 'Sem Título (Registro Genérico)';
                 const date = document.getElementById('log-date').value;
                 const desc = document.getElementById('meal-desc').value.trim();
@@ -84,34 +117,61 @@
                     return;
                 }
 
-                // Simulate AI Processing
                 btnSave.disabled = true;
                 document.getElementById('ai-loading').style.display = 'block';
 
-                setTimeout(() => {
-                    // Mock AI extraction results
+                try {
+                    const { data: { user } } = await window.supabaseClient.auth.getUser();
+                    if (!user) throw new Error("Usuário não logado");
+
+                    // Mock AI extraction results based on what was typed
                     const cals = Math.floor(Math.random() * 400) + 1500;
                     const pro = Math.floor(Math.random() * 30) + 120;
                     const carb = Math.floor(Math.random() * 50) + 200;
                     const fat = Math.floor(Math.random() * 20) + 50;
                     const isFullDay = document.getElementById('is-full-day').checked;
+                    let displayDesc = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
 
-                    let displayDesc = desc.substring(0, 30) + (desc.length > 30 ? '...' : '');
+                    // Format intended payload for Supabase insertion
+                    const logObj = {
+                        user_id: user.id,
+                        log_date: date,
+                        title: title,
+                        total_calories: cals,
+                        macros_json: { pro, carb, fat },
+                        meals_json: [{ isFullDay, desc: displayDesc }]
+                    };
 
-                    this.state.meals.push({ title, date, desc: displayDesc, cals, pro, carb, fat, isFullDay });
+                    const { data, error } = await window.supabaseClient
+                        .from('nutrition_logs')
+                        .insert([logObj])
+                        .select()
+                        .single();
+
+                    if (error) throw error;
+
+                    // Update local state dynamically without full reload
+                    this.state.meals.unshift({
+                        id: data.id,
+                        title,
+                        date,
+                        desc: displayDesc,
+                        cals, pro, carb, fat, isFullDay
+                    });
                     this.state.consumedCals += cals;
                     this.state.consumedPro += pro;
                     this.state.consumedCarb += carb;
                     this.state.consumedFat += fat;
 
-                    // Restore UI
                     document.getElementById('log-title').value = '';
                     document.getElementById('meal-desc').value = '';
+                    this.renderMeals();
+                } catch (err) {
+                    alert("Erro ao salvar refeição: " + err.message);
+                } finally {
                     btnSave.disabled = false;
                     document.getElementById('ai-loading').style.display = 'none';
-
-                    this.renderMeals();
-                }, 1500);
+                }
             });
         },
 
@@ -142,7 +202,7 @@
                         <span><i class="fa-solid fa-circle" style="color:var(--macro-fat); font-size:0.5rem; vertical-align:middle; margin-right: 4px;"></i> G: ${m.fat}g</span>
                     </div>
                 </div>
-            `).reverse().join(''); // Reverse to show latest on top
+            `).join(''); // No need to reverse since we ordered by created_at desc from Supabase and use unshift
         }
     };
 
