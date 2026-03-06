@@ -8,16 +8,7 @@
     const PhotoModule = {
         state: {
             staging: null,
-            entries: [
-                {
-                    title: 'Início do Acompanhamento',
-                    date: '2026-03-01',
-                    images: [
-                        { bf: 16.5, weight: 80.2, url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=2120&auto=format&fit=crop' },
-                        { bf: 15.5, weight: 79.8, url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=2070&auto=format&fit=crop' }
-                    ]
-                }
-            ]
+            entries: []
         },
 
         render() {
