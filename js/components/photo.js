@@ -7,6 +7,7 @@
 
     const PhotoModule = {
         state: {
+            staging: null,
             entries: [
                 {
                     title: 'Início do Acompanhamento',
@@ -45,6 +46,9 @@
                     <div id="photo-ai-loading" style="display:none; text-align:center; margin-top:1.5rem; color: var(--primary-light);">
                         <i class="fa-solid fa-robot fa-bounce"></i> IA escaneando composição corporal (Cálculo de BF e Peso)...
                     </div>
+                    
+                    <div id="photo-staging" style="display:none; margin-top: 1rem; text-align: left;">
+                    </div>
                 </div>
                 
                 <h4 class="mt-4 mb-3" style="font-family: var(--font-display);">Galeria de Evolução</h4>
@@ -76,17 +80,11 @@
 
                     // Simulate AI Processing (2s delay)
                     setTimeout(() => {
-                        let entry = this.state.entries.find(e => e.date === date);
-                        if (!entry) {
-                            entry = { title: title, date: date, images: [] };
-                            this.state.entries.push(entry);
-                        } else if (title !== 'Avaliação Física') {
-                            entry.title = title; // Update title if provided
-                        }
-
                         // Mock AI generated baseline for this batch
                         const baseWeight = 80 + (Math.random() * 2 - 1);
                         const baseBf = 14 + (Math.random() * 3 - 1.5);
+
+                        const stagedImages = [];
 
                         Array.from(files).forEach(file => {
                             const url = URL.createObjectURL(file);
@@ -95,26 +93,76 @@
                             const imgBf = baseBf + (Math.random() * 0.4 - 0.2);
                             const imgWeight = baseWeight + (Math.random() * 0.2 - 0.1);
 
-                            entry.images.push({
+                            stagedImages.push({
                                 bf: parseFloat(imgBf.toFixed(1)),
                                 weight: parseFloat(imgWeight.toFixed(1)),
                                 url: url
                             });
                         });
 
-                        // Sort by date descending
-                        this.state.entries.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                        // Reset form
-                        document.getElementById('photo-title').value = '';
-                        fileInput.value = '';
+                        this.state.staging = {
+                            title: title,
+                            date: date,
+                            images: stagedImages
+                        };
 
                         document.getElementById('photo-ai-loading').style.display = 'none';
-                        document.getElementById('btn-upload-photo').disabled = false;
+                        this.renderStaging();
 
-                        this.renderGallery();
                     }, 2000);
                 }
+            });
+        },
+
+        renderStaging() {
+            const stagingDiv = document.getElementById('photo-staging');
+            if (!this.state.staging) {
+                stagingDiv.style.display = 'none';
+                return;
+            }
+
+            const imgCount = this.state.staging.images.length;
+            stagingDiv.style.display = 'block';
+            stagingDiv.innerHTML = `
+                <div style="font-size: 0.85rem; color: var(--primary); margin-bottom: 0.8rem; text-align: center;">
+                    <i class="fa-solid fa-check-circle"></i> Análise concluída. ${imgCount} foto(s) prontas.
+                </div>
+                <button class="btn btn-primary" id="btn-save-record" style="width: 100%; padding: 0.8rem;">
+                    <i class="fa-solid fa-floppy-disk"></i> Salvar Registro Clínico
+                </button>
+                <button class="btn mt-2" id="btn-cancel-staging" style="width: 100%; padding: 0.5rem; background: transparent; border: 1px solid var(--glass-border); color: var(--text-muted);">Cancelar</button>
+            `;
+
+            document.getElementById('btn-save-record').addEventListener('click', () => {
+                const s = this.state.staging;
+                let entry = this.state.entries.find(e => e.date === s.date);
+                if (!entry) {
+                    entry = { title: s.title, date: s.date, images: [] };
+                    this.state.entries.push(entry);
+                } else if (s.title !== 'Avaliação Física') {
+                    entry.title = s.title; // Update title if provided
+                }
+
+                entry.images.push(...s.images);
+
+                // Sort by date descending
+                this.state.entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // Reset
+                this.state.staging = null;
+                document.getElementById('photo-title').value = '';
+                document.getElementById('file-input').value = '';
+                document.getElementById('btn-upload-photo').disabled = false;
+
+                this.renderStaging();
+                this.renderGallery();
+            });
+
+            document.getElementById('btn-cancel-staging').addEventListener('click', () => {
+                this.state.staging = null;
+                document.getElementById('file-input').value = '';
+                document.getElementById('btn-upload-photo').disabled = false;
+                this.renderStaging();
             });
         },
 
