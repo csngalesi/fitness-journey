@@ -9,6 +9,7 @@
         state: {
             entries: [
                 {
+                    title: 'Início do Acompanhamento',
                     date: '2026-03-01',
                     images: [
                         { bf: 16.5, weight: 80.2, url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=2120&auto=format&fit=crop' },
@@ -29,18 +30,21 @@
                 
                 <div style="background: var(--bg-dark); padding: 1rem; border-radius: 12px; border: 1px dashed var(--primary); text-align: center; margin-bottom: 2rem;" id="upload-box">
                     <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem;"></i>
-                    <h5 style="margin-bottom: 0.5rem;">Adicionar Nova Foto</h5>
+                    <h5 style="margin-bottom: 0.5rem;">Adicionar Novas Fotos</h5>
                     
-                    <div style="display:flex; gap: 0.5rem; justify-content: center; align-items: center; margin-top: 1rem; margin-bottom: 1rem;">
-                        <input type="date" id="photo-date" class="form-control" style="width: auto; padding: 0.5rem;" value="${new Date().toISOString().split('T')[0]}">
-                        <input type="number" id="photo-bf" class="form-control" placeholder="% BF Estimado" style="width: 120px; padding: 0.5rem; text-align: center;">
-                        <input type="number" id="photo-weight" class="form-control" placeholder="Peso (kg)" style="width: 100px; padding: 0.5rem; text-align: center;">
+                    <div style="display:flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; margin-bottom: 1rem;">
+                        <input type="text" id="photo-title" class="form-control" placeholder='Ex: "Término da Quaresma" ou "Fim do Bulking"'>
+                        <input type="date" id="photo-date" class="form-control" style="padding: 0.5rem; color: var(--text-muted);" value="${new Date().toISOString().split('T')[0]}">
                     </div>
 
                     <button class="btn btn-primary" id="btn-upload-photo" style="padding: 0.5rem 2rem;">
-                        <i class="fa-solid fa-camera"></i> Escolher Arquivo
+                        <i class="fa-solid fa-camera"></i> Escolher Fotos (Análise IA)
                     </button>
-                    <input type="file" id="file-input" accept="image/*" style="display: none;">
+                    <input type="file" id="file-input" accept="image/*" multiple style="display: none;">
+                    
+                    <div id="photo-ai-loading" style="display:none; text-align:center; margin-top:1.5rem; color: var(--primary-light);">
+                        <i class="fa-solid fa-robot fa-bounce"></i> IA escaneando composição corporal (Cálculo de BF e Peso)...
+                    </div>
                 </div>
                 
                 <h4 class="mt-4 mb-3" style="font-family: var(--font-display);">Galeria de Evolução</h4>
@@ -62,35 +66,54 @@
             });
 
             fileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
+                const files = e.target.files;
+                if (files && files.length > 0) {
                     const date = document.getElementById('photo-date').value;
-                    const bf = document.getElementById('photo-bf').value;
-                    const weight = document.getElementById('photo-weight').value;
+                    const title = document.getElementById('photo-title').value.trim() || 'Avaliação Física';
 
-                    const url = URL.createObjectURL(file);
+                    document.getElementById('photo-ai-loading').style.display = 'block';
+                    document.getElementById('btn-upload-photo').disabled = true;
 
-                    let entry = this.state.entries.find(e => e.date === date);
-                    if (!entry) {
-                        entry = { date: date, images: [] };
-                        this.state.entries.push(entry);
-                    }
+                    // Simulate AI Processing (2s delay)
+                    setTimeout(() => {
+                        let entry = this.state.entries.find(e => e.date === date);
+                        if (!entry) {
+                            entry = { title: title, date: date, images: [] };
+                            this.state.entries.push(entry);
+                        } else if (title !== 'Avaliação Física') {
+                            entry.title = title; // Update title if provided
+                        }
 
-                    entry.images.push({
-                        bf: bf ? parseFloat(bf) : null,
-                        weight: weight ? parseFloat(weight) : null,
-                        url: url
-                    });
+                        // Mock AI generated baseline for this batch
+                        const baseWeight = 80 + (Math.random() * 2 - 1);
+                        const baseBf = 14 + (Math.random() * 3 - 1.5);
 
-                    // Sort by date descending
-                    this.state.entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        Array.from(files).forEach(file => {
+                            const url = URL.createObjectURL(file);
 
-                    // Reset form
-                    document.getElementById('photo-bf').value = '';
-                    document.getElementById('photo-weight').value = '';
-                    fileInput.value = '';
+                            // Slight variance per photo for the prototype effect
+                            const imgBf = baseBf + (Math.random() * 0.4 - 0.2);
+                            const imgWeight = baseWeight + (Math.random() * 0.2 - 0.1);
 
-                    this.renderGallery();
+                            entry.images.push({
+                                bf: parseFloat(imgBf.toFixed(1)),
+                                weight: parseFloat(imgWeight.toFixed(1)),
+                                url: url
+                            });
+                        });
+
+                        // Sort by date descending
+                        this.state.entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                        // Reset form
+                        document.getElementById('photo-title').value = '';
+                        fileInput.value = '';
+
+                        document.getElementById('photo-ai-loading').style.display = 'none';
+                        document.getElementById('btn-upload-photo').disabled = false;
+
+                        this.renderGallery();
+                    }, 2000);
                 }
             });
         },
@@ -120,9 +143,12 @@
 
                 return `
                 <div style="background:var(--bg-dark); border-radius:12px; overflow:hidden; border:1px solid var(--glass-border);">
-                    <div style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display:flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--primary); font-weight: bold;"><i class="fa-regular fa-calendar" style="margin-right: 5px;"></i> ${entry.date}</span>
-                        <span style="font-size: 0.8rem; color: var(--text-muted);">${imageCount} foto(s)</span>
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display:flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <strong style="color:var(--text-main); display:block; margin-bottom: 0.2rem;">${entry.title || 'Avaliação Física'}</strong>
+                            <span style="color: var(--primary); font-size:0.8rem;"><i class="fa-regular fa-calendar" style="margin-right: 3px;"></i> ${entry.date}</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-muted); padding-top: 2px;">${imageCount} foto(s)</span>
                     </div>
                     
                     <div style="display:grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 2px; background: #000;">
