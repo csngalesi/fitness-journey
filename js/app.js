@@ -142,6 +142,14 @@
                 });
             });
 
+            // Main Workout Card
+            const workoutCard = document.querySelector('.workout-card');
+            if (workoutCard) {
+                workoutCard.addEventListener('click', () => {
+                    this.navigateTo('workout-view');
+                });
+            }
+
             // Bottom Nav active state toggling
             const navItems = document.querySelectorAll('.nav-item:not(.primary-action)');
             navItems.forEach(item => {
@@ -166,6 +174,10 @@
             document.getElementById('btn-goto-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
             document.getElementById('nav-nutrition')?.addEventListener('click', () => this.navigateTo('nutrition-view'));
             document.getElementById('nav-workout')?.addEventListener('click', () => this.navigateTo('workout-view'));
+            document.getElementById('nav-home')?.addEventListener('click', () => {
+                this.navigateTo('dashboard-view');
+                this.animateRings();
+            });
 
             const goBackToDash = () => {
                 this.navigateTo('dashboard-view');
