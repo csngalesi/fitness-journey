@@ -24,12 +24,18 @@
             // Render basic layout
             container.innerHTML = `
                 <div class="macro-summary mb-3" style="font-size: 0.9rem;">
-                    <strong>Metas de Hoje (Protótipo local)</strong><br>
+                    <strong>Metas de Referência (Acompanhamento Pontual)</strong><br>
                     <span style="color:var(--text-muted)">Cals: ${this.state.targetCals} | P: ${this.state.targetPro}g | C: ${this.state.targetCarb}g | F: ${this.state.targetFat}g</span>
                 </div>
                 
                 <div class="form-group mt-4">
-                    <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">O que você comeu?</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">O que você comeu?</label>
+                        <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 0.3rem;">
+                            <input type="checkbox" id="is-full-day" checked style="accent-color: var(--primary);">
+                            Registro do Dia Inteiro
+                        </label>
+                    </div>
                     <textarea id="meal-desc" class="form-control" rows="3" placeholder='Ex: "Comi 3 ovos mexidos com 2 fatias de pão integral e 1 fatia de queijo prato..."'></textarea>
                 </div>
                 
@@ -74,12 +80,16 @@
 
                 setTimeout(() => {
                     // Mock AI extraction results
-                    const cals = Math.floor(Math.random() * 400) + 150;
-                    const pro = Math.floor(Math.random() * 30) + 5;
-                    const carb = Math.floor(Math.random() * 50) + 10;
-                    const fat = Math.floor(Math.random() * 20) + 5;
+                    const cals = Math.floor(Math.random() * 400) + 1500;
+                    const pro = Math.floor(Math.random() * 30) + 120;
+                    const carb = Math.floor(Math.random() * 50) + 200;
+                    const fat = Math.floor(Math.random() * 20) + 50;
+                    const isFullDay = document.getElementById('is-full-day').checked;
 
-                    this.state.meals.push({ desc: desc.substring(0, 30) + '...', cals, pro, carb, fat });
+                    let displayDesc = desc.substring(0, 30) + '...';
+                    if (isFullDay) displayDesc = "📅 [DIA INTEIRO] " + displayDesc;
+
+                    this.state.meals.push({ desc: displayDesc, cals, pro, carb, fat });
                     this.state.consumedCals += cals;
                     this.state.consumedPro += pro;
                     this.state.consumedCarb += carb;
