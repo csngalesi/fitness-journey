@@ -25,19 +25,13 @@
                         .order('log_date', { ascending: false });
 
                     if (logs) {
-                        const entriesMap = {};
-                        logs.forEach(log => {
-                            const key = log.log_date;
-                            if (!entriesMap[key]) {
-                                entriesMap[key] = { title: log.title, date: log.log_date, images: [] };
-                            }
-                            entriesMap[key].images.push({
-                                bf: log.bf_percentage,
-                                weight: log.weight_kg,
-                                url: log.image_url
-                            });
-                        });
-                        this.state.entries = Object.values(entriesMap).sort((a, b) => new Date(b.date) - new Date(a.date));
+                        this.state.entries = logs.map(log => ({
+                            title: log.title,
+                            date: log.log_date,
+                            bf: log.average_bf,
+                            weight: log.average_weight,
+                            images: (log.photos_urls || []).map(url => ({ url }))
+                        }));
                     }
                 }
             } catch (err) {
@@ -165,39 +159,42 @@
                     const { data: { user } } = await window.supabaseClient.auth.getUser();
                     if (!user) throw new Error("Usuário não logado");
 
-                    // Process each image sequentially (could be parallelized, but simpler to track progress)
+                    // Upload all images, collect public URLs
+                    const publicUrls = [];
                     for (const img of s.images) {
                         const fileExt = img.file.name.split('.').pop();
                         const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-                        // Upload to Storage
-                        const { error: uploadError, data: uploadData } = await window.supabaseClient.storage
+                        const { error: uploadError } = await window.supabaseClient.storage
                             .from('evolution_photos')
                             .upload(fileName, img.file);
 
                         if (uploadError) throw uploadError;
 
-                        // Get Public URL
                         const { data: urlData } = window.supabaseClient.storage
                             .from('evolution_photos')
                             .getPublicUrl(fileName);
 
-                        const publicUrl = urlData.publicUrl;
-
-                        // Insert into evolution_logs
-                        const { error: dbError } = await window.supabaseClient
-                            .from('evolution_logs')
-                            .insert([{
-                                user_id: user.id,
-                                log_date: s.date,
-                                title: s.title,
-                                bf_percentage: img.bf,
-                                weight_kg: img.weight,
-                                image_url: publicUrl
-                            }]);
-
-                        if (dbError) throw dbError;
+                        publicUrls.push(urlData.publicUrl);
                     }
+
+                    // Compute averages from staged images
+                    const avgBf = parseFloat((s.images.reduce((sum, i) => sum + i.bf, 0) / s.images.length).toFixed(1));
+                    const avgWeight = parseFloat((s.images.reduce((sum, i) => sum + i.weight, 0) / s.images.length).toFixed(1));
+
+                    // Insert one record per session
+                    const { error: dbError } = await window.supabaseClient
+                        .from('evolution_logs')
+                        .insert([{
+                            user_id: user.id,
+                            log_date: s.date,
+                            title: s.title,
+                            average_bf: avgBf,
+                            average_weight: avgWeight,
+                            photos_urls: publicUrls
+                        }]);
+
+                    if (dbError) throw dbError;
 
                     // Reset and refresh data from Supabase to show real URLs
                     this.state.staging = null;
@@ -230,16 +227,8 @@
             }
 
             list.innerHTML = this.state.entries.map(entry => {
-                let sumBf = 0, countBf = 0;
-                let sumWeight = 0, countWeight = 0;
-
-                entry.images.forEach(img => {
-                    if (img.bf !== null && !isNaN(img.bf)) { sumBf += img.bf; countBf++; }
-                    if (img.weight !== null && !isNaN(img.weight)) { sumWeight += img.weight; countWeight++; }
-                });
-
-                const avgBf = countBf > 0 ? (sumBf / countBf).toFixed(1) : '?';
-                const avgWeight = countWeight > 0 ? (sumWeight / countWeight).toFixed(1) : '?';
+                const avgBf = entry.bf != null ? entry.bf : '?';
+                const avgWeight = entry.weight != null ? entry.weight : '?';
 
                 const imageCount = entry.images.length;
                 const gridCols = Math.min(imageCount, 3);
