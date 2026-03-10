@@ -9,10 +9,11 @@
         state: {
             user: {
                 name: 'Christiano',
-                height: 182, // cm
+                height: 182,
+                weight: null,
                 age: 38,
                 gender: 'M',
-                goal: 'gain' // 'lose', 'maintain', 'gain', 'recomp'
+                goal: 'gain'
             }
         },
 
@@ -37,6 +38,7 @@
                 if (profile) {
                     this.state.user.name = profile.name || user.email.split('@')[0];
                     this.state.user.height = profile.height_cm || 182;
+                    this.state.user.weight = profile.weight_kg || null;
                     this.state.user.age = profile.age || 30;
                     this.state.user.gender = profile.gender || 'M';
                     this.state.user.goal = profile.metabolic_goal || 'maintain';
@@ -63,11 +65,17 @@
                     </p>
 
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
-                        <div>
-                            <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Altura (cm)</label>
-                            <input type="number" id="profile-height" class="form-control" value="${this.state.user.height}">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Altura (cm)</label>
+                                <input type="number" id="profile-height" class="form-control" value="${this.state.user.height}">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Peso atual (kg)</label>
+                                <input type="number" id="profile-weight" class="form-control" step="0.1" value="${this.state.user.weight || ''}" placeholder="Ex: 82.5">
+                            </div>
                         </div>
-                        
+
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div>
                                 <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Idade</label>
@@ -112,6 +120,7 @@
             if (btnSave) {
                 btnSave.addEventListener('click', async () => {
                     this.state.user.height = parseInt(document.getElementById('profile-height').value);
+                    this.state.user.weight = parseFloat(document.getElementById('profile-weight').value) || null;
                     this.state.user.age = parseInt(document.getElementById('profile-age').value);
                     this.state.user.gender = document.getElementById('profile-gender').value;
                     this.state.user.goal = document.getElementById('profile-goal').value;
@@ -124,16 +133,19 @@
                         const { data: { user } } = await window.supabaseClient.auth.getUser();
                         if (!user) throw new Error("Usuário não logado");
 
+                        const payload = {
+                            id: user.id,
+                            name: this.state.user.name,
+                            height_cm: this.state.user.height,
+                            age: this.state.user.age,
+                            gender: this.state.user.gender,
+                            metabolic_goal: this.state.user.goal
+                        };
+                        if (this.state.user.weight !== null) payload.weight_kg = this.state.user.weight;
+
                         const { error } = await window.supabaseClient
                             .from('profiles')
-                            .upsert({
-                                id: user.id,
-                                name: this.state.user.name,
-                                height_cm: this.state.user.height,
-                                age: this.state.user.age,
-                                gender: this.state.user.gender,
-                                metabolic_goal: this.state.user.goal
-                            });
+                            .upsert(payload);
 
                         if (error) throw error;
 

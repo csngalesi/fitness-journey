@@ -162,7 +162,7 @@
 
                 <div style="display: flex; flex-direction: column; gap: 1.2rem;">
                     ${this.state.dailyWorkout.exercises.map((ex, index) => `
-                        <div style="background: var(--bg-dark); border-radius: 12px; border: 1px solid var(--glass-border); overflow: hidden;">
+                        <div data-ex-id="${ex.id}" style="background: var(--bg-dark); border-radius: 12px; border: 1px solid var(--glass-border); overflow: hidden;">
                             <div style="padding: 1rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--glass-border);">
                                 <div style="display:flex; justify-content: space-between; margin-bottom: 0.5rem;">
                                     <strong style="font-size: 0.9rem;">${index + 1}. ${ex.name}</strong>
@@ -212,50 +212,75 @@
 
             const btnRecalc = document.getElementById('btn-recalc-volumes');
             if (btnRecalc) {
-                btnRecalc.addEventListener('click', () => {
+                btnRecalc.addEventListener('click', async () => {
                     const loading = document.getElementById('recalc-loading');
                     const dash = document.getElementById('volumes-dashboard');
+                    const promptText = document.getElementById('physique-prompt').value.trim();
 
                     btnRecalc.disabled = true;
                     loading.style.display = 'block';
                     dash.style.opacity = '0.3';
 
-                    // Simulate AI Generation Payload based on Zane prompt
-                    setTimeout(async () => {
-                        const promptText = document.getElementById('physique-prompt').value;
-                        const newVolumes = [
-                            { muscle: 'Ombros (Foco Lateral)', label: 'Ultra Vol', sets: 24, color: '#ff4b2b', pillStyle: 'background: #ff4b2b; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
-                            { muscle: 'Dorsal (Asa / Expansão)', label: 'Alto Vol', sets: 20, color: 'var(--primary)', pillStyle: 'background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
-                            { muscle: 'Peitoral Superior', label: 'Alto Vol', sets: 18, color: 'var(--primary)', pillStyle: 'background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
-                            { muscle: 'Abdômen Foco Core', label: 'Vol Médio', intValue: 12, sets: 12, color: 'var(--macro-pro)', pillStyle: 'background: var(--macro-pro); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;' },
-                            { muscle: 'Pernas & Braços', label: 'Manutenção', intValue: 8, sets: 8, color: 'var(--text-muted)', pillStyle: 'color: var(--text-muted); padding: 2px 8px; font-size: 0.75rem; font-weight: bold; border: 1px solid var(--glass-border); border-radius: 12px;' }
-                        ];
+                    try {
+                        const { data: { user } } = await window.supabaseClient.auth.getUser();
 
-                        this.state.simulatedVolumes = newVolumes;
-                        this.state.targetPhysique = promptText;
-
-                        try {
-                            const { data: { user } } = await window.supabaseClient.auth.getUser();
-                            if (user) {
-                                await window.supabaseClient.from('physique_architect').insert([{
-                                    user_id: user.id,
-                                    master_prompt: promptText,
-                                    weekly_volumes_json: newVolumes
-                                }]);
-                            }
-                        } catch (e) {
-                            console.error("Erro ao salvar Architect no Supabase:", e);
+                        // Fetch profile for biometric context
+                        let profile = null;
+                        if (user) {
+                            const { data } = await window.supabaseClient
+                                .from('profiles').select('*').eq('id', user.id).single();
+                            profile = data;
                         }
 
-                        this.render(); // Re-render tab with new simulation
-                    }, 2500);
+                        // Real AI call via Gemini
+                        const resp = await fetch('/api/calc-volumes', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                aesthetic_target:  promptText,
+                                height_cm:         profile?.height_cm,
+                                weight_kg:         profile?.weight_kg,
+                                metabolic_goal:    profile?.metabolic_goal,
+                                age:               profile?.age,
+                                gender:            profile?.gender
+                            })
+                        });
+
+                        if (!resp.ok) throw new Error('Erro na chamada à IA');
+                        const newVolumes = await resp.json();
+
+                        // Add pillStyle for rendering
+                        const styledVolumes = newVolumes.map(v => ({
+                            ...v,
+                            pillStyle: v.label === 'Manutenção'
+                                ? `color: ${v.color}; padding: 2px 8px; font-size: 0.75rem; font-weight: bold; border: 1px solid var(--glass-border); border-radius: 12px;`
+                                : `background: ${v.color}; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;`
+                        }));
+
+                        this.state.simulatedVolumes = styledVolumes;
+                        this.state.targetPhysique = promptText;
+
+                        if (user) {
+                            await window.supabaseClient.from('physique_architect').insert([{
+                                user_id: user.id,
+                                master_prompt: promptText,
+                                weekly_volumes_json: styledVolumes
+                            }]);
+                        }
+
+                        this.render();
+                    } catch (err) {
+                        alert('Erro ao recalcular volumes: ' + err.message);
+                        btnRecalc.disabled = false;
+                        loading.style.display = 'none';
+                        dash.style.opacity = '1';
+                    }
                 });
             }
 
             const btnComplete = document.getElementById('btn-complete-workout');
             if (btnComplete) {
                 btnComplete.addEventListener('click', async () => {
-                    // For MVP prototype: We capture the hardcoded dailyWorkout as the execution
                     btnComplete.disabled = true;
                     btnComplete.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Armazenando Progressão...';
 
@@ -263,13 +288,29 @@
                         const { data: { user } } = await window.supabaseClient.auth.getUser();
                         if (!user) throw new Error("Usuário não logado");
 
+                        // Capture actual input values entered by the user
+                        const exerciseCards = document.querySelectorAll('#tab-daily [data-ex-id]');
+                        const executedExercises = this.state.dailyWorkout.exercises.map((ex, index) => {
+                            const card = document.querySelector(`[data-ex-id="${ex.id}"]`);
+                            const weightInput = card ? card.querySelector('input[type="number"]:first-of-type') : null;
+                            const repsInput   = card ? card.querySelector('input[type="number"]:last-of-type')  : null;
+                            return {
+                                id:         ex.id,
+                                name:       ex.name,
+                                targetSets: ex.targetSets,
+                                targetReps: ex.targetReps,
+                                weight:     weightInput ? (parseFloat(weightInput.value) || ex.history.weight) : ex.history.weight,
+                                reps:       repsInput   ? (parseInt(repsInput.value)     || ex.history.reps)   : ex.history.reps,
+                            };
+                        });
+
                         const { error } = await window.supabaseClient
                             .from('workout_executions')
                             .insert([{
                                 user_id: user.id,
                                 log_date: new Date().toISOString().split('T')[0],
                                 workout_title: this.state.dailyWorkout.title,
-                                exercises_log_json: this.state.dailyWorkout.exercises
+                                exercises_log_json: executedExercises
                             }]);
 
                         if (error) throw error;

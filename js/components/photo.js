@@ -54,14 +54,10 @@
                     </div>
 
                     <button class="btn btn-primary" id="btn-upload-photo" style="padding: 0.5rem 2rem;">
-                        <i class="fa-solid fa-camera"></i> Escolher Fotos (Análise IA)
+                        <i class="fa-solid fa-camera"></i> Escolher Fotos
                     </button>
                     <input type="file" id="file-input" accept="image/*" multiple style="display: none;">
-                    
-                    <div id="photo-ai-loading" style="display:none; text-align:center; margin-top:1.5rem; color: var(--primary-light);">
-                        <i class="fa-solid fa-robot fa-bounce"></i> IA escaneando composição corporal (Cálculo de BF e Peso)...
-                    </div>
-                    
+
                     <div id="photo-staging" style="display:none; margin-top: 1rem; text-align: left;">
                     </div>
                 </div>
@@ -90,42 +86,15 @@
                     const date = document.getElementById('photo-date').value;
                     const title = document.getElementById('photo-title').value.trim() || 'Avaliação Física';
 
-                    document.getElementById('photo-ai-loading').style.display = 'block';
-                    document.getElementById('btn-upload-photo').disabled = true;
+                    const stagedImages = Array.from(files).map(file => ({
+                        file,
+                        bf: null,
+                        weight: null,
+                        url: URL.createObjectURL(file)
+                    }));
 
-                    // Simulate AI Processing (2s delay)
-                    setTimeout(() => {
-                        // Mock AI generated baseline for this batch
-                        const baseWeight = 80 + (Math.random() * 2 - 1);
-                        const baseBf = 14 + (Math.random() * 3 - 1.5);
-
-                        const stagedImages = [];
-
-                        Array.from(files).forEach(file => {
-                            const url = URL.createObjectURL(file);
-
-                            // Slight variance per photo for the prototype effect
-                            const imgBf = baseBf + (Math.random() * 0.4 - 0.2);
-                            const imgWeight = baseWeight + (Math.random() * 0.2 - 0.1);
-
-                            stagedImages.push({
-                                file: file,
-                                bf: parseFloat(imgBf.toFixed(1)),
-                                weight: parseFloat(imgWeight.toFixed(1)),
-                                url: url
-                            });
-                        });
-
-                        this.state.staging = {
-                            title: title,
-                            date: date,
-                            images: stagedImages
-                        };
-
-                        document.getElementById('photo-ai-loading').style.display = 'none';
-                        this.renderStaging();
-
-                    }, 2000);
+                    this.state.staging = { title, date, images: stagedImages };
+                    this.renderStaging();
                 }
             });
         },
@@ -139,11 +108,21 @@
 
             const imgCount = this.state.staging.images.length;
             stagingDiv.style.display = 'block';
-            stagingDiv.innerHTML = `
-                <div style="font-size: 0.85rem; color: var(--primary); margin-bottom: 0.8rem; text-align: center;">
-                    <i class="fa-solid fa-check-circle"></i> Análise concluída. ${imgCount} foto(s) prontas.
+
+            const photoInputRows = this.state.staging.images.map((img, idx) => `
+                <div style="display:flex; gap:0.5rem; align-items:center; padding:0.5rem 0; border-bottom:1px solid var(--glass-border);">
+                    <img src="${img.url}" style="width:48px; height:48px; object-fit:cover; border-radius:6px; flex-shrink:0;">
+                    <input type="number" class="form-control bf-input" data-idx="${idx}" placeholder="BF (%)" step="0.1" style="flex:1; padding:0.4rem 0.5rem; font-size:0.85rem;">
+                    <input type="number" class="form-control weight-input" data-idx="${idx}" placeholder="Peso (kg)" step="0.1" style="flex:1; padding:0.4rem 0.5rem; font-size:0.85rem;">
                 </div>
-                <button class="btn btn-primary" id="btn-save-record" style="width: 100%; padding: 0.8rem;">
+            `).join('');
+
+            stagingDiv.innerHTML = `
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.6rem;">
+                    <i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Informe BF% e peso para cada foto:
+                </div>
+                ${photoInputRows}
+                <button class="btn btn-primary mt-3" id="btn-save-record" style="width: 100%; padding: 0.8rem;">
                     <i class="fa-solid fa-floppy-disk"></i> Salvar Registro Clínico
                 </button>
                 <button class="btn mt-2" id="btn-cancel-staging" style="width: 100%; padding: 0.5rem; background: transparent; border: 1px solid var(--glass-border); color: var(--text-muted);">Cancelar</button>
@@ -178,9 +157,16 @@
                         publicUrls.push(urlData.publicUrl);
                     }
 
-                    // Compute averages from staged images
-                    const avgBf = parseFloat((s.images.reduce((sum, i) => sum + i.bf, 0) / s.images.length).toFixed(1));
-                    const avgWeight = parseFloat((s.images.reduce((sum, i) => sum + i.weight, 0) / s.images.length).toFixed(1));
+                    // Read manual BF/weight inputs and compute averages
+                    const bfInputs     = document.querySelectorAll('#photo-staging .bf-input');
+                    const weightInputs = document.querySelectorAll('#photo-staging .weight-input');
+                    bfInputs.forEach((el, i)     => { s.images[i].bf     = parseFloat(el.value)     || null; });
+                    weightInputs.forEach((el, i) => { s.images[i].weight = parseFloat(el.value) || null; });
+
+                    const validBf     = s.images.map(i => i.bf).filter(v => v !== null);
+                    const validWeight = s.images.map(i => i.weight).filter(v => v !== null);
+                    const avgBf     = validBf.length     ? parseFloat((validBf.reduce((a, b) => a + b, 0)     / validBf.length).toFixed(1))     : null;
+                    const avgWeight = validWeight.length ? parseFloat((validWeight.reduce((a, b) => a + b, 0) / validWeight.length).toFixed(1)) : null;
 
                     // Insert one record per session
                     const { error: dbError } = await window.supabaseClient

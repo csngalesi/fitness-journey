@@ -124,11 +124,14 @@
                     const { data: { user } } = await window.supabaseClient.auth.getUser();
                     if (!user) throw new Error("Usuário não logado");
 
-                    // Mock AI extraction results based on what was typed
-                    const cals = Math.floor(Math.random() * 400) + 1500;
-                    const pro = Math.floor(Math.random() * 30) + 120;
-                    const carb = Math.floor(Math.random() * 50) + 200;
-                    const fat = Math.floor(Math.random() * 20) + 50;
+                    // Real AI macro extraction via Gemini
+                    const macroResp = await fetch('/api/extract-macros', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ description: desc })
+                    });
+                    if (!macroResp.ok) throw new Error('Erro na análise de macros pela IA');
+                    const { cals, pro, carb, fat } = await macroResp.json();
                     const isFullDay = document.getElementById('is-full-day').checked;
                     let displayDesc = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
 
