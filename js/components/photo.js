@@ -161,7 +161,7 @@
 
             stagingDiv.style.display = 'block';
 
-            const photoRows = this.state.staging.images.map((img, idx) => {
+            const photoRows = this.state.staging.images.map((img) => {
                 if (img.analyzing) {
                     return `
                     <div style="display:flex; gap:0.5rem; align-items:center; padding:0.6rem 0; border-bottom:1px solid var(--glass-border);">
@@ -171,34 +171,46 @@
                         </div>
                     </div>`;
                 }
-                const bfVal     = img.bf     != null ? img.bf     : '';
-                const weightVal = img.weight != null ? img.weight : '';
-                const notesHtml = img.notes ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:3px; grid-column:1/-1;">${img.notes}</div>` : '';
+                const bfTag     = img.bf     != null ? `<span style="background:var(--primary); color:#fff; padding:2px 8px; border-radius:10px; font-size:0.78rem; font-weight:700;">${img.bf}% BF</span>`     : '';
+                const weightTag = img.weight != null ? `<span style="background:var(--bg-card); color:var(--text-main); padding:2px 8px; border-radius:10px; font-size:0.78rem; border:1px solid var(--glass-border);">${img.weight} kg</span>` : '';
+                const notesHtml = img.notes ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">${img.notes}</div>` : '';
                 return `
-                <div style="padding:0.6rem 0; border-bottom:1px solid var(--glass-border);">
-                    <div style="display:flex; gap:0.5rem; align-items:center;">
-                        <img src="${img.url}" style="width:48px; height:48px; object-fit:cover; border-radius:6px; flex-shrink:0;">
-                        <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; gap:0.4rem;">
-                            <input type="number" class="form-control bf-input" data-idx="${idx}"
-                                placeholder="BF (%)" step="0.1" value="${bfVal}"
-                                style="padding:0.4rem 0.5rem; font-size:0.85rem;">
-                            <input type="number" class="form-control weight-input" data-idx="${idx}"
-                                placeholder="Peso (kg)" step="0.1" value="${weightVal}"
-                                style="padding:0.4rem 0.5rem; font-size:0.85rem;">
-                            ${notesHtml}
+                <div style="display:flex; gap:0.5rem; align-items:flex-start; padding:0.6rem 0; border-bottom:1px solid var(--glass-border);">
+                    <img src="${img.url}" style="width:48px; height:48px; object-fit:cover; border-radius:6px; flex-shrink:0;">
+                    <div style="flex:1;">
+                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center;">
+                            ${bfTag} ${weightTag}
+                            ${!bfTag && !weightTag ? '<span style="font-size:0.78rem; color:var(--text-muted);">IA não identificou valores</span>' : ''}
                         </div>
+                        ${notesHtml}
                     </div>
                 </div>`;
             }).join('');
 
             const allDone = this.state.staging.images.every(img => !img.analyzing);
 
+            // Compute session averages for preview
+            let avgSummary = '';
+            if (allDone) {
+                const validBf     = this.state.staging.images.map(i => i.bf).filter(v => v !== null);
+                const validWeight = this.state.staging.images.map(i => i.weight).filter(v => v !== null);
+                const avgBf     = validBf.length     ? (validBf.reduce((a, b) => a + b, 0)     / validBf.length).toFixed(1)     : null;
+                const avgWeight = validWeight.length ? (validWeight.reduce((a, b) => a + b, 0) / validWeight.length).toFixed(1) : null;
+                if (avgBf || avgWeight) {
+                    avgSummary = `
+                    <div style="background:rgba(255,65,108,0.08); border:1px solid var(--primary-light); border-radius:8px; padding:0.7rem 1rem; margin-top:0.8rem; display:flex; justify-content:space-around;">
+                        ${avgBf     ? `<div style="text-align:center;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:3px;">Média BF</div><strong style="color:var(--primary);">${avgBf}%</strong></div>` : ''}
+                        ${avgWeight ? `<div style="text-align:center;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:3px;">Média Peso</div><strong style="color:var(--text-main);">${avgWeight} kg</strong></div>` : ''}
+                    </div>`;
+                }
+            }
+
             stagingDiv.innerHTML = `
                 <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.4rem;">
-                    <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--primary);"></i>
-                    IA estimou BF% e peso — ajuste se necessário:
+                    <i class="fa-solid fa-robot" style="color:var(--primary);"></i> Análise de composição corporal pela IA:
                 </div>
                 ${photoRows}
+                ${avgSummary}
                 ${allDone ? `
                 <button class="btn btn-primary mt-3" id="btn-save-record" style="width:100%; padding:0.8rem;">
                     <i class="fa-solid fa-floppy-disk"></i> Salvar Registro Clínico
@@ -217,14 +229,6 @@
                     try {
                         const { data: { user } } = await window.supabaseClient.auth.getUser();
                         if (!user) throw new Error("Usuário não logado");
-
-                        // Read editable values (user may have corrected AI estimates)
-                        document.querySelectorAll('#photo-staging .bf-input').forEach((el, i) => {
-                            s.images[i].bf = parseFloat(el.value) || null;
-                        });
-                        document.querySelectorAll('#photo-staging .weight-input').forEach((el, i) => {
-                            s.images[i].weight = parseFloat(el.value) || null;
-                        });
 
                         // Upload images to Supabase Storage
                         const publicUrls = [];
