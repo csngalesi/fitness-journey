@@ -130,8 +130,9 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ description: desc })
                     });
-                    if (!macroResp.ok) throw new Error('Erro na análise de macros pela IA');
-                    const { cals, pro, carb, fat } = await macroResp.json();
+                    const macroData = await macroResp.json();
+                    if (!macroResp.ok) throw new Error(macroData.error || 'Erro na análise de macros pela IA');
+                    const { cals, pro, carb, fat } = macroData;
                     const isFullDay = document.getElementById('is-full-day').checked;
                     let displayDesc = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
 

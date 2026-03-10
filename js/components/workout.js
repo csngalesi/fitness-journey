@@ -246,8 +246,9 @@
                             })
                         });
 
-                        if (!resp.ok) throw new Error('Erro na chamada à IA');
-                        const newVolumes = await resp.json();
+                        const respData = await resp.json();
+                        if (!resp.ok) throw new Error(respData.error || 'Erro na chamada à IA');
+                        const newVolumes = respData;
 
                         // Add pillStyle for rendering
                         const styledVolumes = newVolumes.map(v => ({
