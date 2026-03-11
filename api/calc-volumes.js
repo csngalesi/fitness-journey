@@ -53,6 +53,15 @@ Formato exato:
   "rationale": "Justificativa em 2-3 frases explicando as prioridades de volume e frequência recomendada (ex: X dias/semana).",
   "volumes": [
     {"muscle": "string", "sets": number, "label": "string", "color": "string"}
+  ],
+  "weekly_split": [
+    {
+      "day": "D1",
+      "label": "Nome do treino (ex: Push / Costas e Bíceps / etc.)",
+      "groups": [
+        {"muscle": "string", "sets": number, "exercises": ["Exercício 1", "Exercício 2"]}
+      ]
+    }
   ]
 }`;
 
@@ -94,9 +103,12 @@ Formato exato:
                 color:  String(v.color || '#6b7280'),
             }));
 
+        const weekly_split = Array.isArray(parsed.weekly_split) ? parsed.weekly_split : [];
+
         return res.status(200).json({
             rationale: String(parsed.rationale || ''),
             volumes,
+            weekly_split,
         });
     } catch (err) {
         console.error('[calc-volumes] Error:', err);

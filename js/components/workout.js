@@ -20,7 +20,8 @@
                 ]
             },
             simulatedVolumes: null, // Store new volumes simulation
-            aiRationale: null       // Justificativa da IA sobre o plano de volumes
+            aiRationale: null,      // Justificativa da IA sobre o plano de volumes
+            weeklySplit: null       // Split semanal com exercícios por dia
         },
 
         async render() {
@@ -49,6 +50,7 @@
                             } else if (wv.volumes && wv.volumes.length > 0) {
                                 this.state.simulatedVolumes = wv.volumes;
                                 this.state.aiRationale = wv.rationale || null;
+                                this.state.weeklySplit  = wv.weekly_split || null;
                             }
                         }
                     }
@@ -57,14 +59,21 @@
                 console.warn("Could not fetch workout config:", err);
             }
 
+            const tabStyle = (tab) => `flex:1; text-align:center; padding: 0.7rem 0.3rem; cursor:pointer; font-weight: bold; font-size: 0.8rem;
+                color: ${this.state.activeTab === tab ? 'var(--primary)' : 'var(--text-muted)'};
+                border-bottom: ${this.state.activeTab === tab ? '2px solid var(--primary)' : 'none'}; margin-bottom: -2px;`;
+
             container.innerHTML = `
                 <!-- Tabs Navigation -->
                 <div style="display:flex; border-bottom: 2px solid var(--glass-border); margin-bottom: 1.5rem;">
-                    <div class="workout-tab ${this.state.activeTab === 'architect' ? 'active' : ''}" data-tab="architect" style="flex:1; text-align:center; padding: 0.8rem; cursor:pointer; font-weight: bold; color: ${this.state.activeTab === 'architect' ? 'var(--primary)' : 'var(--text-muted)'}; border-bottom: ${this.state.activeTab === 'architect' ? '2px solid var(--primary)' : 'none'}; margin-bottom: -2px;">
+                    <div class="workout-tab" data-tab="architect" style="${tabStyle('architect')}">
                         <i class="fa-solid fa-compass-drafting"></i> O Arquiteto
                     </div>
-                    <div class="workout-tab ${this.state.activeTab === 'daily' ? 'active' : ''}" data-tab="daily" style="flex:1; text-align:center; padding: 0.8rem; cursor:pointer; font-weight: bold; color: ${this.state.activeTab === 'daily' ? 'var(--primary)' : 'var(--text-muted)'}; border-bottom: ${this.state.activeTab === 'daily' ? '2px solid var(--primary)' : 'none'}; margin-bottom: -2px;">
-                        <i class="fa-solid fa-dumbbell"></i> Treino do Dia
+                    <div class="workout-tab" data-tab="weekly" style="${tabStyle('weekly')}">
+                        <i class="fa-solid fa-calendar-week"></i> Semana
+                    </div>
+                    <div class="workout-tab" data-tab="daily" style="${tabStyle('daily')}">
+                        <i class="fa-solid fa-dumbbell"></i> Próximo Treino
                     </div>
                 </div>
 
@@ -72,7 +81,11 @@
                 <div id="tab-architect" style="display: ${this.state.activeTab === 'architect' ? 'block' : 'none'};">
                     ${this.renderArchitectTab()}
                 </div>
-                
+
+                <div id="tab-weekly" style="display: ${this.state.activeTab === 'weekly' ? 'block' : 'none'};">
+                    ${this.renderWeeklyTab()}
+                </div>
+
                 <div id="tab-daily" style="display: ${this.state.activeTab === 'daily' ? 'block' : 'none'};">
                     ${this.renderDailyTab()}
                 </div>
@@ -148,6 +161,46 @@
                             <div style="display:flex; justify-content: space-between; align-items:center;">
                                 <strong style="color: var(--text-main);">${vol.muscle}</strong>
                                 <span style="${vol.pillStyle}">${vol.label}: ${vol.sets} Séries</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        },
+
+        renderWeeklyTab() {
+            if (!this.state.weeklySplit || this.state.weeklySplit.length === 0) {
+                return `
+                    <div style="text-align:center; padding: 2rem; color: var(--text-muted);">
+                        <i class="fa-solid fa-calendar-week" style="font-size: 2rem; margin-bottom: 1rem; display:block; opacity:0.4;"></i>
+                        <p>Nenhum split gerado ainda.</p>
+                        <p style="font-size: 0.85rem;">Acesse <strong>O Arquiteto</strong> e clique em <em>Recalcular Volumes</em> para a IA prescrever sua semana de treinos.</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    ${this.state.weeklySplit.map(day => `
+                        <div style="background: var(--bg-dark); border-radius: 12px; border: 1px solid var(--glass-border); overflow: hidden;">
+                            <div style="padding: 0.75rem 1rem; background: rgba(var(--primary-rgb, 139,0,0), 0.15); border-bottom: 1px solid var(--glass-border); display:flex; align-items:center; gap: 0.75rem;">
+                                <span style="background: var(--primary); color: #fff; font-weight: bold; font-size: 0.8rem; padding: 2px 10px; border-radius: 20px; white-space:nowrap;">${day.day}</span>
+                                <strong style="font-size: 0.9rem; color: var(--text-main);">${day.label || ''}</strong>
+                            </div>
+                            <div style="padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.6rem;">
+                                ${(day.groups || []).map(g => `
+                                    <div>
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.25rem;">
+                                            <span style="font-weight: bold; font-size: 0.85rem; color: var(--text-main);">${g.muscle}</span>
+                                            <span style="font-size: 0.75rem; color: var(--primary-light); font-weight: bold;">${g.sets} séries</span>
+                                        </div>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                                            ${(g.exercises || []).map(ex => `
+                                                <span style="font-size: 0.72rem; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 20px;">${ex}</span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
                             </div>
                         </div>
                     `).join('')}
@@ -252,8 +305,9 @@
                         const respData = await resp.json();
                         if (!resp.ok) throw new Error(respData.error || 'Erro na chamada à IA');
 
-                        const newVolumes = respData.volumes || respData; // backward compat
-                        const rationale  = respData.rationale || null;
+                        const newVolumes  = respData.volumes || respData; // backward compat
+                        const rationale   = respData.rationale   || null;
+                        const weeklySplit = respData.weekly_split || null;
 
                         // Add pillStyle for rendering
                         const styledVolumes = newVolumes.map(v => ({
@@ -266,12 +320,13 @@
                         this.state.simulatedVolumes = styledVolumes;
                         this.state.targetPhysique   = promptText;
                         this.state.aiRationale      = rationale;
+                        this.state.weeklySplit      = weeklySplit;
 
                         if (user) {
                             await window.supabaseClient.from('physique_architect').insert([{
                                 user_id: user.id,
                                 master_prompt: promptText,
-                                weekly_volumes_json: { volumes: styledVolumes, rationale }
+                                weekly_volumes_json: { volumes: styledVolumes, rationale, weekly_split: weeklySplit }
                             }]);
                         }
 
