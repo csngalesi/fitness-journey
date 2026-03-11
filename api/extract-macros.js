@@ -51,9 +51,9 @@ Refeição: ${description}`;
         const parts = geminiData?.candidates?.[0]?.content?.parts || [];
         const raw = parts.map(p => p.text || '').join('\n');
 
-        // Extract JSON from response (handles markdown code blocks too)
-        const match = raw.match(/\{[\s\S]*?\}/);
-        if (!match) throw new Error('No JSON found in Gemini response');
+        // Extract JSON from response — greedy to capture the full object
+        const match = raw.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error(`No JSON found. Parts: ${parts.length}. Raw: ${raw.substring(0, 300)}`);
 
         const macros = JSON.parse(match[0]);
 
