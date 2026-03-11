@@ -137,9 +137,10 @@
                     let displayDesc = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
 
                     // Ensure profile row exists (nutrition_logs FK references profiles.id)
-                    await window.supabaseClient
+                    const { error: profileErr } = await window.supabaseClient
                         .from('profiles')
                         .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
+                    if (profileErr) throw new Error('Erro ao criar perfil base: ' + profileErr.message);
 
                     // Format intended payload for Supabase insertion
                     const logObj = {
