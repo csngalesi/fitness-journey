@@ -69,7 +69,8 @@ Formato exato de cada item: {"muscle": "string", "sets": number, "label": "strin
         }
 
         const geminiData = await geminiRes.json();
-        const raw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const parts = geminiData?.candidates?.[0]?.content?.parts || [];
+        const raw = parts.map(p => p.text || '').join('\n');
 
         // Extract JSON array from response
         const match = raw.match(/\[[\s\S]*\]/);
