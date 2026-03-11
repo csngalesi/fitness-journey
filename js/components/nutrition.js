@@ -139,7 +139,10 @@
                     // Ensure profile row exists (nutrition_logs FK references profiles.id)
                     const { error: profileErr } = await window.supabaseClient
                         .from('profiles')
-                        .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
+                        .upsert(
+                            { id: user.id, first_name: user.email?.split('@')[0] || 'User' },
+                            { onConflict: 'id', ignoreDuplicates: true }
+                        );
                     if (profileErr) throw new Error('Erro ao criar perfil base: ' + profileErr.message);
 
                     // Format intended payload for Supabase insertion

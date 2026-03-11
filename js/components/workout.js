@@ -398,7 +398,10 @@
                         // Ensure profile exists (FK constraint)
                         await window.supabaseClient
                             .from('profiles')
-                            .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
+                            .upsert(
+                                { id: user.id, first_name: user.email?.split('@')[0] || 'User' },
+                                { onConflict: 'id', ignoreDuplicates: true }
+                            );
 
                         const { error } = await window.supabaseClient
                             .from('workout_executions')
