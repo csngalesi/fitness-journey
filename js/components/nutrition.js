@@ -136,6 +136,11 @@
                     const isFullDay = document.getElementById('is-full-day').checked;
                     let displayDesc = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
 
+                    // Ensure profile row exists (nutrition_logs FK references profiles.id)
+                    await window.supabaseClient
+                        .from('profiles')
+                        .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
+
                     // Format intended payload for Supabase insertion
                     const logObj = {
                         user_id: user.id,
