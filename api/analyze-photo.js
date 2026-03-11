@@ -40,7 +40,7 @@ Exemplo: {"bf": 14.5, "weight": 82.0, "notes": "Definição visível no abdômen
 
     try {
         const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -51,7 +51,7 @@ Exemplo: {"bf": 14.5, "weight": 82.0, "notes": "Definição visível no abdômen
                             { text: prompt }
                         ]
                     }],
-                    generationConfig: { temperature: 0.3, maxOutputTokens: 256 }
+                    generationConfig: { temperature: 0.3, maxOutputTokens: 512, thinkingConfig: { thinkingBudget: 0 } }
                 })
             }
         );
@@ -62,9 +62,10 @@ Exemplo: {"bf": 14.5, "weight": 82.0, "notes": "Definição visível no abdômen
         }
 
         const geminiData = await geminiRes.json();
-        const raw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const parts = geminiData?.candidates?.[0]?.content?.parts || [];
+        const raw = parts.filter(p => !p.thought).map(p => p.text || '').join('\n');
 
-        const match = raw.match(/\{[\s\S]*?\}/);
+        const match = raw.match(/\{[\s\S]*\}/);
         if (!match) throw new Error('No JSON found in Gemini response');
 
         const result = JSON.parse(match[0]);
