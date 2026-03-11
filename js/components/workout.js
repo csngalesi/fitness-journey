@@ -308,6 +308,14 @@
                         }
 
                         // Real AI call via Gemini
+                        let age = null;
+                        if (profile?.birth_date) {
+                            const today = new Date(), bd = new Date(profile.birth_date);
+                            age = today.getFullYear() - bd.getFullYear();
+                            const m = today.getMonth() - bd.getMonth();
+                            if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+                        }
+
                         const resp = await fetch('/api/calc-volumes', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -316,7 +324,7 @@
                                 height_cm:         profile?.height_cm,
                                 weight_kg:         profile?.weight_kg,
                                 metabolic_goal:    profile?.metabolic_goal,
-                                age:               profile?.age,
+                                age,
                                 gender:            profile?.gender
                             })
                         });
