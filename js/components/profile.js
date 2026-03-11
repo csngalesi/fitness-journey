@@ -47,7 +47,7 @@
                     .single();
 
                 if (profile) {
-                    this.state.user.name = profile.name || user.email.split('@')[0];
+                    this.state.user.name = profile.first_name || profile.name || user.email.split('@')[0];
                     this.state.user.height = profile.height_cm || 182;
                     this.state.user.weight = profile.weight_kg || null;
                     this.state.user.birth_date = profile.birth_date || null;
@@ -148,7 +148,7 @@
 
                         const payload = {
                             id: user.id,
-                            name: this.state.user.name,
+                            first_name: this.state.user.name,
                             height_cm: this.state.user.height,
                             birth_date: this.state.user.birth_date,
                             gender: this.state.user.gender,
