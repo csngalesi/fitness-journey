@@ -396,12 +396,13 @@
                         }));
 
                         // Ensure profile exists (FK constraint)
-                        await window.supabaseClient
+                        const { error: profErr } = await window.supabaseClient
                             .from('profiles')
                             .upsert(
                                 { id: user.id, first_name: user.email?.split('@')[0] || 'User' },
                                 { onConflict: 'id', ignoreDuplicates: true }
                             );
+                        if (profErr) throw new Error('Erro ao criar perfil base: ' + profErr.message);
 
                         const { error } = await window.supabaseClient
                             .from('workout_executions')
