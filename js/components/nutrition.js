@@ -137,13 +137,13 @@
                     let displayDesc = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
 
                     // Ensure profile row exists (nutrition_logs FK references profiles.id)
+                    // Use insert + ignore duplicate error (23505) instead of upsert ignoreDuplicates
                     const { error: profileErr } = await window.supabaseClient
                         .from('profiles')
-                        .upsert(
-                            { id: user.id, first_name: user.email?.split('@')[0] || 'User' },
-                            { onConflict: 'id', ignoreDuplicates: true }
-                        );
-                    if (profileErr) throw new Error('Erro ao criar perfil base: ' + profileErr.message);
+                        .insert({ id: user.id, first_name: user.email?.split('@')[0] || 'user' });
+                    if (profileErr && profileErr.code !== '23505') {
+                        throw new Error('Erro ao criar perfil base: ' + profileErr.message);
+                    }
 
                     // Format intended payload for Supabase insertion
                     const logObj = {
