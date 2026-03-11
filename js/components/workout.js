@@ -159,6 +159,13 @@
             `;
         },
 
+        _distributeSets(totalSets, count) {
+            if (!count) return [];
+            const base = Math.floor(totalSets / count);
+            const extra = totalSets % count;
+            return Array.from({ length: count }, (_, i) => base + (i < extra ? 1 : 0));
+        },
+
         renderWeeklyTab() {
             if (!this.state.weeklySplit || this.state.weeklySplit.length === 0) {
                 return `
@@ -183,19 +190,24 @@
                                 </button>
                             </div>
                             <div style="padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.6rem;">
-                                ${(day.groups || []).map(g => `
+                                ${(day.groups || []).map(g => {
+                                    const perEx = this._distributeSets(g.sets, (g.exercises || []).length);
+                                    return `
                                     <div>
-                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.25rem;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.35rem;">
                                             <span style="font-weight: bold; font-size: 0.85rem; color: var(--text-main);">${g.muscle}</span>
                                             <span style="font-size: 0.75rem; color: var(--primary-light); font-weight: bold;">${g.sets} séries</span>
                                         </div>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
-                                            ${(g.exercises || []).map(ex => `
-                                                <span style="font-size: 0.72rem; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 20px;">${ex}</span>
+                                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                            ${(g.exercises || []).map((ex, i) => `
+                                                <div style="display:flex; align-items:center; gap: 0.4rem;">
+                                                    <span style="font-size: 0.72rem; color: var(--primary); font-weight: bold; min-width: 28px; text-align:right;">${perEx[i]}×</span>
+                                                    <span style="font-size: 0.78rem; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--glass-border); padding: 3px 10px; border-radius: 20px; flex:1;">${ex}</span>
+                                                </div>
                                             `).join('')}
                                         </div>
-                                    </div>
-                                `).join('')}
+                                    </div>`;
+                                }).join('')}
                             </div>
                         </div>
                     `).join('')}
@@ -215,7 +227,10 @@
                 `;
             }
 
-            const allExercises = (day.groups || []).flatMap(g => (g.exercises || []).map(ex => ({ name: ex, muscle: g.muscle, sets: g.sets })));
+            const allExercises = (day.groups || []).flatMap(g => {
+                const perEx = this._distributeSets(g.sets, (g.exercises || []).length);
+                return (g.exercises || []).map((ex, i) => ({ name: ex, muscle: g.muscle, sets: perEx[i] }));
+            });
 
             return `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
@@ -236,7 +251,7 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem;">
                                 <div>
                                     <label style="font-size: 0.65rem; color: var(--text-muted); text-transform:uppercase; display:block; margin-bottom:2px;">Séries</label>
-                                    <input type="number" class="form-control report-sets" data-ex="${i}" placeholder="${ex.sets}" min="1" style="padding: 0.4rem; text-align:center; font-size:0.85rem;">
+                                    <input type="number" class="form-control report-sets" data-ex="${i}" value="${ex.sets}" min="1" style="padding: 0.4rem; text-align:center; font-size:0.85rem;">
                                 </div>
                                 <div>
                                     <label style="font-size: 0.65rem; color: var(--text-muted); text-transform:uppercase; display:block; margin-bottom:2px;">Peso (kg)</label>
@@ -366,9 +381,10 @@
                         if (!user) throw new Error("Usuário não logado");
 
                         const day = this.state.reportingDay;
-                        const allExercises = (day.groups || []).flatMap(g =>
-                            (g.exercises || []).map(ex => ({ name: ex, muscle: g.muscle, sets: g.sets }))
-                        );
+                        const allExercises = (day.groups || []).flatMap(g => {
+                            const perEx = this._distributeSets(g.sets, (g.exercises || []).length);
+                            return (g.exercises || []).map((ex, i) => ({ name: ex, muscle: g.muscle, sets: perEx[i] }));
+                        });
 
                         const exercisesLog = allExercises.map((ex, i) => ({
                             name:   ex.name,
