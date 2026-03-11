@@ -37,7 +37,7 @@ Refeição: ${description}`;
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.2, maxOutputTokens: 256 }
+                    generationConfig: { temperature: 0.2, maxOutputTokens: 512 }
                 })
             }
         );
@@ -48,7 +48,8 @@ Refeição: ${description}`;
         }
 
         const geminiData = await geminiRes.json();
-        const raw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const parts = geminiData?.candidates?.[0]?.content?.parts || [];
+        const raw = parts.map(p => p.text || '').join('\n');
 
         // Extract JSON from response (handles markdown code blocks too)
         const match = raw.match(/\{[\s\S]*?\}/);
