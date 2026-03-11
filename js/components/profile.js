@@ -11,10 +11,21 @@
                 name: 'Christiano',
                 height: 182,
                 weight: null,
-                age: 38,
+                birth_date: null,
+                age: null,
                 gender: 'M',
                 goal: 'gain'
             }
+        },
+
+        _calcAge(birth_date) {
+            if (!birth_date) return null;
+            const today = new Date();
+            const bd = new Date(birth_date);
+            let age = today.getFullYear() - bd.getFullYear();
+            const m = today.getMonth() - bd.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+            return age;
         },
 
         async render() {
@@ -39,7 +50,8 @@
                     this.state.user.name = profile.name || user.email.split('@')[0];
                     this.state.user.height = profile.height_cm || 182;
                     this.state.user.weight = profile.weight_kg || null;
-                    this.state.user.age = profile.age || 30;
+                    this.state.user.birth_date = profile.birth_date || null;
+                    this.state.user.age = this._calcAge(profile.birth_date);
                     this.state.user.gender = profile.gender || 'M';
                     this.state.user.goal = profile.metabolic_goal || 'maintain';
                 } else {
@@ -78,8 +90,8 @@
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div>
-                                <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Idade</label>
-                                <input type="number" id="profile-age" class="form-control" value="${this.state.user.age}">
+                                <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Data de Nascimento${this.state.user.age ? ` <span style="color:var(--primary)">(${this.state.user.age} anos)</span>` : ''}</label>
+                                <input type="date" id="profile-birth-date" class="form-control" style="color: var(--text-muted);" value="${this.state.user.birth_date || ''}">
                             </div>
                             <div>
                                 <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Gênero Biológico</label>
@@ -121,7 +133,8 @@
                 btnSave.addEventListener('click', async () => {
                     this.state.user.height = parseInt(document.getElementById('profile-height').value);
                     this.state.user.weight = parseFloat(document.getElementById('profile-weight').value) || null;
-                    this.state.user.age = parseInt(document.getElementById('profile-age').value);
+                    this.state.user.birth_date = document.getElementById('profile-birth-date').value || null;
+                    this.state.user.age = this._calcAge(this.state.user.birth_date);
                     this.state.user.gender = document.getElementById('profile-gender').value;
                     this.state.user.goal = document.getElementById('profile-goal').value;
 
@@ -137,7 +150,7 @@
                             id: user.id,
                             name: this.state.user.name,
                             height_cm: this.state.user.height,
-                            age: this.state.user.age,
+                            birth_date: this.state.user.birth_date,
                             gender: this.state.user.gender,
                             metabolic_goal: this.state.user.goal
                         };
