@@ -58,7 +58,7 @@ Formato exato de cada item: {"muscle": "string", "sets": number, "label": "strin
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
+                    generationConfig: { temperature: 0.4, maxOutputTokens: 4096 }
                 })
             }
         );
