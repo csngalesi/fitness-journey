@@ -7,21 +7,12 @@
 
     const WorkoutModule = {
         state: {
-            activeTab: 'architect', // 'architect' or 'daily'
+            activeTab: 'architect', // 'architect' | 'weekly' | 'report'
             targetPhysique: 'Frank Zane (V-Shape Clássico)',
-            focusAreas: ['Dorsal (Expansão)', 'Deltoide Lateral (Cebola)', 'Peitoral Superior'],
-            dailyWorkout: {
-                title: 'A | Push Focado (Peito/Ombro/Tríceps)',
-                exercises: [
-                    { id: 1, name: 'Supino Inclinado c/ Halteres', targetSets: 4, targetReps: '8-12', history: { weight: 34, reps: 10 } },
-                    { id: 2, name: 'Elevação Lateral no Cabo', targetSets: 5, targetReps: '12-15', history: { weight: 15, reps: 14 } },
-                    { id: 3, name: 'Crucifixo no Cross (De baixo p/ cima)', targetSets: 3, targetReps: '10-15', history: { weight: 20, reps: 12 } },
-                    { id: 4, name: 'Tríceps Corda', targetSets: 4, targetReps: '10-12', history: { weight: 45, reps: 10 } }
-                ]
-            },
             simulatedVolumes: null, // Store new volumes simulation
             aiRationale: null,      // Justificativa da IA sobre o plano de volumes
-            weeklySplit: null       // Split semanal com exercícios por dia
+            weeklySplit: null,      // Split semanal com exercícios por dia
+            reportingDay: null      // Dia selecionado para relato { day, label, groups }
         },
 
         async render() {
@@ -72,8 +63,8 @@
                     <div class="workout-tab" data-tab="weekly" style="${tabStyle('weekly')}">
                         <i class="fa-solid fa-calendar-week"></i> Semana
                     </div>
-                    <div class="workout-tab" data-tab="daily" style="${tabStyle('daily')}">
-                        <i class="fa-solid fa-dumbbell"></i> Próximo Treino
+                    <div class="workout-tab" data-tab="report" style="${tabStyle('report')}">
+                        <i class="fa-solid fa-clipboard-list"></i> Relatório
                     </div>
                 </div>
 
@@ -86,8 +77,8 @@
                     ${this.renderWeeklyTab()}
                 </div>
 
-                <div id="tab-daily" style="display: ${this.state.activeTab === 'daily' ? 'block' : 'none'};">
-                    ${this.renderDailyTab()}
+                <div id="tab-report" style="display: ${this.state.activeTab === 'report' ? 'block' : 'none'};">
+                    ${this.renderReportTab()}
                 </div>
             `;
 
@@ -185,7 +176,11 @@
                         <div style="background: var(--bg-dark); border-radius: 12px; border: 1px solid var(--glass-border); overflow: hidden;">
                             <div style="padding: 0.75rem 1rem; background: rgba(var(--primary-rgb, 139,0,0), 0.15); border-bottom: 1px solid var(--glass-border); display:flex; align-items:center; gap: 0.75rem;">
                                 <span style="background: var(--primary); color: #fff; font-weight: bold; font-size: 0.8rem; padding: 2px 10px; border-radius: 20px; white-space:nowrap;">${day.day}</span>
-                                <strong style="font-size: 0.9rem; color: var(--text-main);">${day.label || ''}</strong>
+                                <strong style="font-size: 0.9rem; color: var(--text-main); flex:1;">${day.label || ''}</strong>
+                                <button class="btn-relatar" data-day-index="${this.state.weeklySplit.indexOf(day)}"
+                                    style="font-size: 0.72rem; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--primary-light); background: transparent; color: var(--primary-light); cursor: pointer; white-space:nowrap;">
+                                    <i class="fa-solid fa-pen-to-square"></i> Relatar
+                                </button>
                             </div>
                             <div style="padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.6rem;">
                                 ${(day.groups || []).map(g => `
@@ -208,48 +203,57 @@
             `;
         },
 
-        renderDailyTab() {
-            return `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h5 style="color: var(--primary); margin:0;">${this.state.dailyWorkout.title}</h5>
-                    <button class="btn-icon" style="background: var(--bg-card); border: 1px solid var(--glass-border);"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-                </div>
-                
+        renderReportTab() {
+            const day = this.state.reportingDay;
+            if (!day) {
+                return `
+                    <div style="text-align:center; padding: 2rem; color: var(--text-muted);">
+                        <i class="fa-solid fa-clipboard-list" style="font-size: 2rem; margin-bottom: 1rem; display:block; opacity:0.4;"></i>
+                        <p>Nenhum treino selecionado.</p>
+                        <p style="font-size: 0.85rem;">Acesse a aba <strong>Semana</strong> e clique em <em>Relatar</em> no dia que você treinou.</p>
+                    </div>
+                `;
+            }
 
-                <div style="display: flex; flex-direction: column; gap: 1.2rem;">
-                    ${this.state.dailyWorkout.exercises.map((ex, index) => `
-                        <div data-ex-id="${ex.id}" style="background: var(--bg-dark); border-radius: 12px; border: 1px solid var(--glass-border); overflow: hidden;">
-                            <div style="padding: 1rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--glass-border);">
-                                <div style="display:flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <strong style="font-size: 0.9rem;">${index + 1}. ${ex.name}</strong>
-                                    <span style="color: var(--primary-light); font-size: 0.8rem; font-weight: bold;">Algoritmo: ${ex.targetSets} x ${ex.targetReps}</span>
+            const allExercises = (day.groups || []).flatMap(g => (g.exercises || []).map(ex => ({ name: ex, muscle: g.muscle, sets: g.sets })));
+
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                    <div>
+                        <span style="background: var(--primary); color: #fff; font-size: 0.75rem; font-weight: bold; padding: 2px 10px; border-radius: 20px;">${day.day}</span>
+                        <strong style="margin-left: 0.5rem; color: var(--text-main);">${day.label || ''}</strong>
+                    </div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">${new Date().toLocaleDateString('pt-BR')}</span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.8rem;" id="report-exercises">
+                    ${allExercises.map((ex, i) => `
+                        <div style="background: var(--bg-dark); border-radius: 10px; border: 1px solid var(--glass-border); padding: 0.8rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+                                <strong style="font-size: 0.85rem;">${i + 1}. ${ex.name}</strong>
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">${ex.muscle}</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem;">
+                                <div>
+                                    <label style="font-size: 0.65rem; color: var(--text-muted); text-transform:uppercase; display:block; margin-bottom:2px;">Séries</label>
+                                    <input type="number" class="form-control report-sets" data-ex="${i}" placeholder="${ex.sets}" min="1" style="padding: 0.4rem; text-align:center; font-size:0.85rem;">
                                 </div>
-                                
-                                <div style="display:flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); background: var(--bg-card); padding: 0.5rem; border-radius: 6px;">
-                                    <span><i class="fa-solid fa-clock-rotate-left"></i> Semana Passada:</span>
-                                    <strong style="color: #fff;">${ex.history.weight}kg para ${ex.history.reps} reps</strong>
+                                <div>
+                                    <label style="font-size: 0.65rem; color: var(--text-muted); text-transform:uppercase; display:block; margin-bottom:2px;">Peso (kg)</label>
+                                    <input type="number" class="form-control report-weight" data-ex="${i}" placeholder="0" step="0.5" style="padding: 0.4rem; text-align:center; font-size:0.85rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.65rem; color: var(--text-muted); text-transform:uppercase; display:block; margin-bottom:2px;">Reps</label>
+                                    <input type="number" class="form-control report-reps" data-ex="${i}" placeholder="0" style="padding: 0.4rem; text-align:center; font-size:0.85rem;">
                                 </div>
                             </div>
-                            
-                            <!-- Input para Overload Carga -->
-                            <div style="padding: 1rem; display: flex; gap: 0.5rem; align-items: center;">
-                                <div style="flex: 1;">
-                                    <label style="font-size: 0.7rem; color: var(--text-muted); text-transform:uppercase;">Volume/Carga Executada Hoje</label>
-                                    <div style="display: flex; gap: 0.5rem;">
-                                        <input type="number" class="form-control" placeholder="Peso (kg)" style="padding: 0.5rem; text-align:center;">
-                                        <input type="number" class="form-control" placeholder="Reps" style="padding: 0.5rem; text-align:center;">
-                                    </div>
-                                </div>
-                                <button class="btn-icon" style="background: var(--primary); color: white; border-radius: 8px; height: 38px; width: 45px; margin-top: 15px;">
-                                    <i class="fa-solid fa-check"></i>
-                                </button>
-                            </div>
+                            <input type="text" class="form-control report-note mt-2" data-ex="${i}" placeholder="Comentário (opcional)" style="padding: 0.4rem; font-size: 0.8rem; margin-top: 0.4rem;">
                         </div>
                     `).join('')}
                 </div>
-                
-                <button class="btn btn-primary mt-4" id="btn-complete-workout" style="width: 100%; padding: 1rem; background: #28a745; border-color: #28a745;">
-                    <i class="fa-solid fa-flag-checkered"></i> Concluir Treino (Salvar Histórico)
+
+                <button class="btn btn-primary mt-4" id="btn-save-report" style="width: 100%; padding: 1rem; background: #28a745; border-color: #28a745;">
+                    <i class="fa-solid fa-flag-checkered"></i> Salvar Relatório de Treino
                 </button>
             `;
         },
@@ -340,50 +344,64 @@
                 });
             }
 
-            const btnComplete = document.getElementById('btn-complete-workout');
-            if (btnComplete) {
-                btnComplete.addEventListener('click', async () => {
-                    btnComplete.disabled = true;
-                    btnComplete.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Armazenando Progressão...';
+            // "Relatar" buttons in weekly tab
+            document.querySelectorAll('.btn-relatar').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.getAttribute('data-day-index'));
+                    this.state.reportingDay = this.state.weeklySplit[idx];
+                    this.state.activeTab = 'report';
+                    this.render();
+                });
+            });
+
+            // Save workout report
+            const btnSaveReport = document.getElementById('btn-save-report');
+            if (btnSaveReport) {
+                btnSaveReport.addEventListener('click', async () => {
+                    btnSaveReport.disabled = true;
+                    btnSaveReport.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
 
                     try {
                         const { data: { user } } = await window.supabaseClient.auth.getUser();
                         if (!user) throw new Error("Usuário não logado");
 
-                        // Capture actual input values entered by the user
-                        const exerciseCards = document.querySelectorAll('#tab-daily [data-ex-id]');
-                        const executedExercises = this.state.dailyWorkout.exercises.map((ex, index) => {
-                            const card = document.querySelector(`[data-ex-id="${ex.id}"]`);
-                            const weightInput = card ? card.querySelector('input[type="number"]:first-of-type') : null;
-                            const repsInput   = card ? card.querySelector('input[type="number"]:last-of-type')  : null;
-                            return {
-                                id:         ex.id,
-                                name:       ex.name,
-                                targetSets: ex.targetSets,
-                                targetReps: ex.targetReps,
-                                weight:     weightInput ? (parseFloat(weightInput.value) || ex.history.weight) : ex.history.weight,
-                                reps:       repsInput   ? (parseInt(repsInput.value)     || ex.history.reps)   : ex.history.reps,
-                            };
-                        });
+                        const day = this.state.reportingDay;
+                        const allExercises = (day.groups || []).flatMap(g =>
+                            (g.exercises || []).map(ex => ({ name: ex, muscle: g.muscle, sets: g.sets }))
+                        );
+
+                        const exercisesLog = allExercises.map((ex, i) => ({
+                            name:   ex.name,
+                            muscle: ex.muscle,
+                            sets:   parseInt(document.querySelector(`.report-sets[data-ex="${i}"]`)?.value)   || ex.sets,
+                            weight: parseFloat(document.querySelector(`.report-weight[data-ex="${i}"]`)?.value) || 0,
+                            reps:   parseInt(document.querySelector(`.report-reps[data-ex="${i}"]`)?.value)   || 0,
+                            note:   document.querySelector(`.report-note[data-ex="${i}"]`)?.value || '',
+                        }));
+
+                        // Ensure profile exists (FK constraint)
+                        await window.supabaseClient
+                            .from('profiles')
+                            .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
 
                         const { error } = await window.supabaseClient
                             .from('workout_executions')
                             .insert([{
-                                user_id: user.id,
-                                log_date: new Date().toISOString().split('T')[0],
-                                workout_title: this.state.dailyWorkout.title,
-                                exercises_log_json: executedExercises
+                                user_id:            user.id,
+                                log_date:           new Date().toISOString().split('T')[0],
+                                workout_title:      `${day.day} — ${day.label || ''}`,
+                                exercises_log_json: exercisesLog
                             }]);
 
                         if (error) throw error;
 
-                        btnComplete.innerHTML = '<i class="fa-solid fa-check"></i> Histórico de Sobrecarga Salvo!';
-                        btnComplete.style.background = '#28a745';
-                        setTimeout(() => this.render(), 2000);
+                        btnSaveReport.innerHTML = '<i class="fa-solid fa-check"></i> Treino salvo no histórico!';
+                        this.state.reportingDay = null;
+                        setTimeout(() => { this.state.activeTab = 'weekly'; this.render(); }, 2000);
                     } catch (err) {
-                        alert("Erro ao salvar: " + err.message);
-                        btnComplete.disabled = false;
-                        btnComplete.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Concluir Treino (Salvar Histórico)';
+                        alert("Erro ao salvar relatório: " + err.message);
+                        btnSaveReport.disabled = false;
+                        btnSaveReport.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Salvar Relatório de Treino';
                     }
                 });
             }
