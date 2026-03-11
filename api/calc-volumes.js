@@ -85,7 +85,8 @@ Formato exato:
 
         const geminiData = await geminiRes.json();
         const parts = geminiData?.candidates?.[0]?.content?.parts || [];
-        const raw = parts.map(p => p.text || '').join('\n');
+        // Filter out thinking parts (thought: true) — only keep actual answer text
+        const raw = parts.filter(p => !p.thought).map(p => p.text || '').join('\n');
 
         // Extract JSON object from response
         const match = raw.match(/\{[\s\S]*\}/);
