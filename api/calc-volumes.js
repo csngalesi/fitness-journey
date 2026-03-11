@@ -2,7 +2,7 @@
  * Fitness Journey MED — Vercel Serverless Function
  * POST /api/calc-volumes
  * Body: { aesthetic_target, height_cm, weight_kg, metabolic_goal, age, gender }
- * Returns: [{ muscle, sets, label, color }]
+ * Returns: { rationale: string, volumes: [{ muscle, sets, label, color }] }
  * Env: GEMINI_API_KEY
  */
 
@@ -40,15 +40,21 @@ Baseado no perfil e na estética alvo abaixo, prescreva os volumes semanais por 
 Perfil: ${profileStr}
 Estética alvo: ${aesthetic_target || 'Físico atlético equilibrado'}
 
-Regras:
+Regras para os volumes:
 - Priorize grupos musculares que mais contribuem para a estética alvo descrita
 - Volume total semanal entre 8 e 30 séries por grupo
 - Labels: use "Ultra Vol" (>22), "Alto Vol" (16-22), "Vol Médio" (10-15), "Manutenção" (<10)
 - Cores hex: vermelho (#ef4444) para Ultra Vol, roxo (#7c3aed) para Alto Vol, azul (#3b82f6) para Vol Médio, cinza (#6b7280) para Manutenção
 - Liste entre 5 e 8 grupos musculares
 
-Retorne APENAS um array JSON válido, sem markdown, sem explicações.
-Formato exato de cada item: {"muscle": "string", "sets": number, "label": "string", "color": "string"}`;
+Retorne APENAS um objeto JSON válido, sem markdown, sem explicações.
+Formato exato:
+{
+  "rationale": "Justificativa em 2-3 frases explicando as prioridades de volume e frequência recomendada (ex: X dias/semana).",
+  "volumes": [
+    {"muscle": "string", "sets": number, "label": "string", "color": "string"}
+  ]
+}`;
 
     try {
         const geminiRes = await fetch(
@@ -72,14 +78,14 @@ Formato exato de cada item: {"muscle": "string", "sets": number, "label": "strin
         const parts = geminiData?.candidates?.[0]?.content?.parts || [];
         const raw = parts.map(p => p.text || '').join('\n');
 
-        // Extract JSON array from response
-        const match = raw.match(/\[[\s\S]*\]/);
-        if (!match) throw new Error(`No JSON array found. Parts: ${parts.length}. Raw: ${raw.substring(0, 500)}`);
+        // Extract JSON object from response
+        const match = raw.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error(`No JSON found. Parts: ${parts.length}. Raw: ${raw.substring(0, 500)}`);
 
-        const volumes = JSON.parse(match[0]);
+        const parsed = JSON.parse(match[0]);
+        const volumesRaw = Array.isArray(parsed.volumes) ? parsed.volumes : (Array.isArray(parsed) ? parsed : []);
 
-        // Validate each item has required fields
-        const result = volumes
+        const volumes = volumesRaw
             .filter(v => v.muscle && v.sets)
             .map(v => ({
                 muscle: String(v.muscle),
@@ -88,7 +94,10 @@ Formato exato de cada item: {"muscle": "string", "sets": number, "label": "strin
                 color:  String(v.color || '#6b7280'),
             }));
 
-        return res.status(200).json(result);
+        return res.status(200).json({
+            rationale: String(parsed.rationale || ''),
+            volumes,
+        });
     } catch (err) {
         console.error('[calc-volumes] Error:', err);
         return res.status(500).json({ error: err.message });

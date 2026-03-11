@@ -19,7 +19,8 @@
                     { id: 4, name: 'Tríceps Corda', targetSets: 4, targetReps: '10-12', history: { weight: 45, reps: 10 } }
                 ]
             },
-            simulatedVolumes: null // Store new volumes simulation
+            simulatedVolumes: null, // Store new volumes simulation
+            aiRationale: null       // Justificativa da IA sobre o plano de volumes
         },
 
         async render() {
@@ -40,8 +41,15 @@
 
                     if (archData) {
                         if (archData.master_prompt) this.state.targetPhysique = archData.master_prompt;
-                        if (archData.weekly_volumes_json && archData.weekly_volumes_json.length > 0) {
-                            this.state.simulatedVolumes = archData.weekly_volumes_json;
+                        const wv = archData.weekly_volumes_json;
+                        if (wv) {
+                            // New format: { volumes, rationale } | Old format: array
+                            if (Array.isArray(wv) && wv.length > 0) {
+                                this.state.simulatedVolumes = wv;
+                            } else if (wv.volumes && wv.volumes.length > 0) {
+                                this.state.simulatedVolumes = wv.volumes;
+                                this.state.aiRationale = wv.rationale || null;
+                            }
                         }
                     }
                 }
@@ -133,9 +141,7 @@
             // Simulated View
             return `
                 <h5 class="mb-3" style="font-family: var(--font-display);">Ajuste de Inteligência Artificial <i class="fa-solid fa-check-circle" style="color: #28a745; font-size:0.8rem;"></i></h5>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
-                    Baseado no perfil "Frank Zane" e Biometria de 1.82m. O volume de pernas e braços foi retraído para realocar energia de recuperação para a Cintura Escapular.
-                </p>
+                ${this.state.aiRationale ? `<p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">${this.state.aiRationale}</p>` : ''}
                 <div style="display: flex; flex-direction: column; gap: 0.8rem;">
                     ${this.state.simulatedVolumes.map(vol => `
                         <div style="background: var(--bg-dark); padding: 1rem; border-radius: 8px; border-left: 4px solid ${vol.color};">
@@ -156,9 +162,6 @@
                     <button class="btn-icon" style="background: var(--bg-card); border: 1px solid var(--glass-border);"><i class="fa-solid fa-ellipsis-vertical"></i></button>
                 </div>
                 
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">
-                    Sua IA personalizou este treino focando 60% do volume na porção clavicular do peito e em elevações laterais para alargar a silhueta (Modelo Frank Zane).
-                </p>
 
                 <div style="display: flex; flex-direction: column; gap: 1.2rem;">
                     ${this.state.dailyWorkout.exercises.map((ex, index) => `
@@ -248,7 +251,9 @@
 
                         const respData = await resp.json();
                         if (!resp.ok) throw new Error(respData.error || 'Erro na chamada à IA');
-                        const newVolumes = respData;
+
+                        const newVolumes = respData.volumes || respData; // backward compat
+                        const rationale  = respData.rationale || null;
 
                         // Add pillStyle for rendering
                         const styledVolumes = newVolumes.map(v => ({
@@ -259,13 +264,14 @@
                         }));
 
                         this.state.simulatedVolumes = styledVolumes;
-                        this.state.targetPhysique = promptText;
+                        this.state.targetPhysique   = promptText;
+                        this.state.aiRationale      = rationale;
 
                         if (user) {
                             await window.supabaseClient.from('physique_architect').insert([{
                                 user_id: user.id,
                                 master_prompt: promptText,
-                                weekly_volumes_json: styledVolumes
+                                weekly_volumes_json: { volumes: styledVolumes, rationale }
                             }]);
                         }
 
