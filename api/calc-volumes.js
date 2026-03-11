@@ -74,7 +74,7 @@ Formato exato de cada item: {"muscle": "string", "sets": number, "label": "strin
 
         // Extract JSON array from response
         const match = raw.match(/\[[\s\S]*\]/);
-        if (!match) throw new Error('No JSON array found in Gemini response');
+        if (!match) throw new Error(`No JSON array found. Parts: ${parts.length}. Raw: ${raw.substring(0, 500)}`);
 
         const volumes = JSON.parse(match[0]);
 
