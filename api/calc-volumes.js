@@ -1,8 +1,8 @@
 /**
  * Fitness Journey MED — Vercel Serverless Function
  * POST /api/calc-volumes
- * Body: { aesthetic_target, height_cm, weight_kg, metabolic_goal, age, gender }
- * Returns: { rationale: string, volumes: [{ muscle, sets, label, color }] }
+ * Body: { aesthetic_target, height_cm, weight_kg, metabolic_goal, age, gender, training_level }
+ * Returns: { rationale, volumes, weekly_split }
  * Env: GEMINI_API_KEY
  */
 
@@ -13,53 +13,127 @@ const GOAL_LABELS = {
     recomp:   'recomposição corporal',
 };
 
+const TRAINING_LEVEL_LABELS = {
+    beginner:     'iniciante (< 1 ano de treino consistente)',
+    intermediate: 'intermediário (1-4 anos de treino consistente)',
+    advanced:     'avançado (> 4 anos de treino consistente)',
+};
+
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { aesthetic_target, height_cm, weight_kg, metabolic_goal, age, gender } = req.body || {};
+    const { aesthetic_target, height_cm, weight_kg, metabolic_goal, age, gender, training_level } = req.body || {};
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
     }
 
-    const goalLabel = GOAL_LABELS[metabolic_goal] || metabolic_goal || 'não informado';
+    const goalLabel     = GOAL_LABELS[metabolic_goal]         || metabolic_goal || 'não informado';
+    const levelLabel    = TRAINING_LEVEL_LABELS[training_level] || 'intermediário (1-4 anos)';
+
     const profileStr = [
-        height_cm ? `${height_cm}cm` : null,
-        weight_kg ? `${weight_kg}kg` : null,
-        age       ? `${age} anos`    : null,
-        gender === 'M' ? 'masculino' : gender === 'F' ? 'feminino' : null,
-        `objetivo: ${goalLabel}`,
-    ].filter(Boolean).join(', ');
+        height_cm  ? `${height_cm}cm`                                            : null,
+        weight_kg  ? `${weight_kg}kg`                                            : null,
+        age        ? `${age} anos`                                               : null,
+        gender === 'M' ? 'sexo masculino' : gender === 'F' ? 'sexo feminino'    : null,
+        `objetivo metabólico: ${goalLabel}`,
+        `nível de treino: ${levelLabel}`,
+    ].filter(Boolean).join(' | ');
 
-    const prompt = `Você é um coach especializado em fisiculturismo natural e hipertrofia científica.
-Baseado no perfil e na estética alvo abaixo, prescreva os volumes semanais por grupo muscular para as próximas 4 semanas.
+    const prompt = `Você é um cientista do esporte e coach de força especializado em hipertrofia baseada em evidências.
+Use o framework MEV/MAV/MRV do RP Strength para prescrever volumes semanais individualizados.
 
-Perfil: ${profileStr}
-Estética alvo: ${aesthetic_target || 'Físico atlético equilibrado'}
+PERFIL DO ATLETA: ${profileStr}
+ESTÉTICA ALVO: ${aesthetic_target || 'Físico atlético equilibrado'}
 
-Regras para os volumes:
-- Priorize grupos musculares que mais contribuem para a estética alvo descrita
-- Volume total semanal entre 8 e 30 séries por grupo
-- Labels: use "Ultra Vol" (>22), "Alto Vol" (16-22), "Vol Médio" (10-15), "Manutenção" (<10)
-- Cores hex: vermelho (#ef4444) para Ultra Vol, roxo (#7c3aed) para Alto Vol, azul (#3b82f6) para Vol Médio, cinza (#6b7280) para Manutenção
-- Liste entre 5 e 8 grupos musculares
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+FRAMEWORK DE VOLUME (séries/semana por nível de treino)
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use estas faixas de referência (MV = manutenção | MEV = mínimo efetivo | MAV = máximo adaptativo | MRV = máximo recuperável):
 
-Retorne APENAS um objeto JSON válido, sem markdown, sem explicações.
-Formato exato:
+Grupo Muscular       | MV  | MEV       | MAV       | MRV
+Quadríceps           | 6   | 8–10      | 12–20     | 22–26
+Isquiotibiais        | 4   | 6–8       | 10–16     | 18–22
+Glúteos              | 0   | 4–6       | 8–14      | 16–20
+Peitoral             | 6   | 8–10      | 12–20     | 20–24
+Dorsal (costas)      | 8   | 10–12     | 14–22     | 24–28
+Ombros (lat+post)    | 6   | 8–10      | 16–22     | 24–28
+Bíceps               | 6   | 8–10      | 14–20     | 24–28
+Tríceps              | 4   | 6–8       | 10–18     | 20–24
+Panturrilhas         | 6   | 8–10      | 12–16     | 20–24
+
+REGRAS DE PRESCRIÇÃO DE VOLUME:
+- Iniciante: usar MEV (menor capacidade de recuperação, maior sensibilidade ao treino)
+- Intermediário: MEV até metade do MAV
+- Avançado: MAV pleno a MRV para grupos prioritários
+- Músculos que contribuem mais para a estética alvo → volumes no topo da faixa (MAV→MRV)
+- Músculos não prioritários ou já desenvolvidos → MV ou MEV
+- Frequência ideal: 2–3x/semana por grupo para síntese proteica máxima
+- Nunca ultrapassar MRV — risco de overreaching e regressão
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITÉRIOS DE SELEÇÃO DE EXERCÍCIOS (baseados em evidências)
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Priorize exercícios com:
+1. TENSÃO MECÂNICA ALTA NO ALONGAMENTO (posição de maior comprimento = maior hipertrofia — Petrella 2006, McMahon 2014)
+2. CURVA DE FORÇA FAVORÁVEL (carga distribuída em toda a amplitude, não apenas no pico)
+3. ALTA ATIVAÇÃO por EMG em estudos controlados
+4. BAIXO RISCO articular para a carga muscular gerada
+
+Referências por grupo:
+- Quadríceps: hack squat, leg press 45°, Bulgarian split squat (melhor ROM que agachamento traseiro)
+- Isquiotibiais: stiff-leg deadlift/RDL, leg curl deitado (ênfase no alongamento), Nordic curl
+- Glúteos: hip thrust, RDL, agachamento profundo (ativação no alongamento > extensão no topo)
+- Peitoral: supino inclinado com halteres, crucifixo no cabo baixo para alto (ênfase no estiramento)
+- Dorsal: remada apoiada no banco, pulldown com full stretch, remada unilateral com haltere
+- Ombros laterais: elevação lateral no cabo (tensão constante > haltere), elevação lateral na máquina
+- Bíceps: rosca inclinada com haltere (posição encurtada do cotovelo = estiramento do bíceps), rosca no cabo
+- Tríceps: extensão testa, extensão sobre a cabeça (ênfase na cabeça longa = máximo estiramento)
+- Panturrilhas: elevação sentado (sóleo), elevação em pé (gastrocnêmio), sempre com amplitude completa
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRESCRIÇÃO DE REP RANGES E DESCANSO
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Compostos (agachar, empurrar, puxar): 6–10 reps | 2–3 min descanso
+- Isolamento: 10–20 reps | 60–90s descanso
+- RIR (Reps in Reserve): 1–3 em todas as séries de trabalho (não failure sistêmico)
+- Último set pode ser RIR 0–1 (próximo da falha)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORMATO DE RESPOSTA
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Retorne APENAS JSON válido, sem markdown, sem explicações externas.
+
+Labels de volume: "Ultra Vol" (>22 séries), "Alto Vol" (16–22), "Vol Médio" (10–15), "Manutenção" (<10)
+Cores hex: #ef4444 Ultra Vol | #7c3aed Alto Vol | #3b82f6 Vol Médio | #6b7280 Manutenção
+
 {
-  "rationale": "Justificativa em 2-3 frases explicando as prioridades de volume e frequência recomendada (ex: X dias/semana).",
+  "rationale": "2–3 frases justificando as prioridades de volume, frequência e ajustes ao nível do atleta.",
   "volumes": [
-    {"muscle": "string", "sets": number, "label": "string", "color": "string"}
+    {"muscle": "string", "sets": number, "label": "string", "color": "string", "frequency_per_week": number}
   ],
   "weekly_split": [
     {
       "day": "D1",
-      "label": "Nome do treino (ex: Push / Costas e Bíceps / etc.)",
+      "label": "Nome do treino (ex: Push — Peitoral & Tríceps)",
       "groups": [
-        {"muscle": "string", "sets": number, "exercises": ["Exercício 1", "Exercício 2"]}
+        {
+          "muscle": "string",
+          "sets": number,
+          "exercises": [
+            {
+              "name": "string",
+              "sets": number,
+              "reps": "string (ex: '8-10' ou '12-15')",
+              "rest": "string (ex: '2 min' ou '90s')",
+              "rir": "string (ex: 'RIR 2')",
+              "rationale": "string curta: por que este exercício (1 frase)"
+            }
+          ]
+        }
       ]
     }
   ]
@@ -74,7 +148,7 @@ Formato exato:
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
-                        temperature: 0.4,
+                        temperature: 0.3,
                         maxOutputTokens: 8192,
                         thinkingConfig: { thinkingBudget: 0 }
                     }
@@ -89,23 +163,22 @@ Formato exato:
 
         const geminiData = await geminiRes.json();
         const parts = geminiData?.candidates?.[0]?.content?.parts || [];
-        // Filter out thinking parts (thought: true) — only keep actual answer text
         const raw = parts.filter(p => !p.thought).map(p => p.text || '').join('\n');
 
-        // Extract JSON object from response
         const match = raw.match(/\{[\s\S]*\}/);
         if (!match) throw new Error(`No JSON found. Parts: ${parts.length}. Raw: ${raw.substring(0, 500)}`);
 
         const parsed = JSON.parse(match[0]);
-        const volumesRaw = Array.isArray(parsed.volumes) ? parsed.volumes : (Array.isArray(parsed) ? parsed : []);
+        const volumesRaw = Array.isArray(parsed.volumes) ? parsed.volumes : [];
 
         const volumes = volumesRaw
             .filter(v => v.muscle && v.sets)
             .map(v => ({
-                muscle: String(v.muscle),
-                sets:   Math.round(Number(v.sets)),
-                label:  String(v.label || 'Vol Médio'),
-                color:  String(v.color || '#6b7280'),
+                muscle:             String(v.muscle),
+                sets:               Math.round(Number(v.sets)),
+                label:              String(v.label || 'Vol Médio'),
+                color:              String(v.color || '#6b7280'),
+                frequency_per_week: Number(v.frequency_per_week) || 2,
             }));
 
         const weekly_split = Array.isArray(parsed.weekly_split) ? parsed.weekly_split : [];

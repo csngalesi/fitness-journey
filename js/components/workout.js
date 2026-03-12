@@ -189,22 +189,34 @@
                                     <i class="fa-solid fa-pen-to-square"></i> Relatar
                                 </button>
                             </div>
-                            <div style="padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.6rem;">
+                            <div style="padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.8rem;">
                                 ${(day.groups || []).map(g => {
                                     const perEx = this._distributeSets(g.sets, (g.exercises || []).length);
                                     return `
                                     <div>
-                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.35rem;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.4rem;">
                                             <span style="font-weight: bold; font-size: 0.85rem; color: var(--text-main);">${g.muscle}</span>
                                             <span style="font-size: 0.75rem; color: var(--primary-light); font-weight: bold;">${g.sets} séries</span>
                                         </div>
-                                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                            ${(g.exercises || []).map((ex, i) => `
-                                                <div style="display:flex; align-items:center; gap: 0.4rem;">
-                                                    <span style="font-size: 0.72rem; color: var(--primary); font-weight: bold; min-width: 28px; text-align:right;">${perEx[i]}×</span>
-                                                    <span style="font-size: 0.78rem; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--glass-border); padding: 3px 10px; border-radius: 20px; flex:1;">${ex}</span>
-                                                </div>
-                                            `).join('')}
+                                        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                                            ${(g.exercises || []).map((ex, i) => {
+                                                const isObj  = typeof ex === 'object' && ex !== null;
+                                                const name   = isObj ? ex.name   : ex;
+                                                const sets   = isObj ? ex.sets   : perEx[i];
+                                                const reps   = isObj ? ex.reps   : '8–12';
+                                                const rest   = isObj ? ex.rest   : null;
+                                                const rir    = isObj ? ex.rir    : null;
+                                                const why    = isObj ? ex.rationale : null;
+                                                return `
+                                                <div style="background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: 10px; padding: 0.5rem 0.75rem;">
+                                                    <div style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: ${why ? '0.3rem' : '0'};">
+                                                        <span style="font-size: 0.72rem; color: var(--primary); font-weight: bold; min-width: 24px;">${sets}×</span>
+                                                        <span style="font-size: 0.8rem; color: var(--text-main); flex:1; font-weight: 500;">${name}</span>
+                                                        <span style="font-size: 0.68rem; color: var(--text-muted); white-space:nowrap;">${reps} reps${rest ? ' · ' + rest : ''}${rir ? ' · ' + rir : ''}</span>
+                                                    </div>
+                                                    ${why ? `<div style="font-size: 0.68rem; color: var(--text-muted); padding-left: 1.5rem; font-style: italic;">${why}</div>` : ''}
+                                                </div>`;
+                                            }).join('')}
                                         </div>
                                     </div>`;
                                 }).join('')}
@@ -229,7 +241,10 @@
 
             const allExercises = (day.groups || []).flatMap(g => {
                 const perEx = this._distributeSets(g.sets, (g.exercises || []).length);
-                return (g.exercises || []).map((ex, i) => ({ name: ex, muscle: g.muscle, sets: perEx[i] }));
+                return (g.exercises || []).map((ex, i) => {
+                    const isObj = typeof ex === 'object' && ex !== null;
+                    return { name: isObj ? ex.name : ex, muscle: g.muscle, sets: isObj ? ex.sets : perEx[i] };
+                });
             });
 
             return `
@@ -325,7 +340,8 @@
                                 weight_kg:         profile?.weight_kg,
                                 metabolic_goal:    profile?.metabolic_goal,
                                 age,
-                                gender:            profile?.gender
+                                gender:            profile?.gender,
+                                training_level:    profile?.training_level || 'intermediate',
                             })
                         });
 
@@ -391,7 +407,10 @@
                         const day = this.state.reportingDay;
                         const allExercises = (day.groups || []).flatMap(g => {
                             const perEx = this._distributeSets(g.sets, (g.exercises || []).length);
-                            return (g.exercises || []).map((ex, i) => ({ name: ex, muscle: g.muscle, sets: perEx[i] }));
+                            return (g.exercises || []).map((ex, i) => {
+                                const isObj = typeof ex === 'object' && ex !== null;
+                                return { name: isObj ? ex.name : ex, muscle: g.muscle, sets: isObj ? ex.sets : perEx[i] };
+                            });
                         });
 
                         const exercisesLog = allExercises.map((ex, i) => ({

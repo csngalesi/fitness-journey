@@ -14,7 +14,8 @@
                 birth_date: null,
                 age: null,
                 gender: 'M',
-                goal: 'gain'
+                goal: 'gain',
+                training_level: 'intermediate'
             }
         },
 
@@ -47,13 +48,14 @@
                     .single();
 
                 if (profile) {
-                    this.state.user.name = profile.first_name || profile.name || user.email.split('@')[0];
-                    this.state.user.height = profile.height_cm || 182;
-                    this.state.user.weight = profile.weight_kg || null;
-                    this.state.user.birth_date = profile.birth_date || null;
-                    this.state.user.age = this._calcAge(profile.birth_date);
-                    this.state.user.gender = profile.gender || 'M';
-                    this.state.user.goal = profile.metabolic_goal || 'maintain';
+                    this.state.user.name           = profile.first_name || profile.name || user.email.split('@')[0];
+                    this.state.user.height         = profile.height_cm || 182;
+                    this.state.user.weight         = profile.weight_kg || null;
+                    this.state.user.birth_date     = profile.birth_date || null;
+                    this.state.user.age            = this._calcAge(profile.birth_date);
+                    this.state.user.gender         = profile.gender || 'M';
+                    this.state.user.goal           = profile.metabolic_goal || 'maintain';
+                    this.state.user.training_level = profile.training_level || 'intermediate';
                 } else {
                     this.state.user.name = user.email.split('@')[0];
                 }
@@ -111,6 +113,15 @@
                                 <option value="recomp" ${this.state.user.goal === 'recomp' ? 'selected' : ''}>Recomposição Corporal</option>
                             </select>
                         </div>
+
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Nível de Treino</label>
+                            <select id="profile-training-level" class="form-control" style="background-color: rgba(255, 255, 255, 0.05); color: #fff;">
+                                <option value="beginner"     ${this.state.user.training_level === 'beginner'     ? 'selected' : ''}>Iniciante (&lt; 1 ano consistente)</option>
+                                <option value="intermediate" ${this.state.user.training_level === 'intermediate' ? 'selected' : ''}>Intermediário (1–4 anos)</option>
+                                <option value="advanced"     ${this.state.user.training_level === 'advanced'     ? 'selected' : ''}>Avançado (&gt; 4 anos)</option>
+                            </select>
+                        </div>
                     </div>
 
                     <button class="btn btn-primary mt-4" id="btn-save-profile" style="width: 100%;">
@@ -133,10 +144,11 @@
                 btnSave.addEventListener('click', async () => {
                     this.state.user.height = parseInt(document.getElementById('profile-height').value);
                     this.state.user.weight = parseFloat(document.getElementById('profile-weight').value) || null;
-                    this.state.user.birth_date = document.getElementById('profile-birth-date').value || null;
-                    this.state.user.age = this._calcAge(this.state.user.birth_date);
-                    this.state.user.gender = document.getElementById('profile-gender').value;
-                    this.state.user.goal = document.getElementById('profile-goal').value;
+                    this.state.user.birth_date     = document.getElementById('profile-birth-date').value || null;
+                    this.state.user.age            = this._calcAge(this.state.user.birth_date);
+                    this.state.user.gender         = document.getElementById('profile-gender').value;
+                    this.state.user.goal           = document.getElementById('profile-goal').value;
+                    this.state.user.training_level = document.getElementById('profile-training-level').value;
 
                     btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando na nuvem...';
                     btnSave.disabled = true;
@@ -147,12 +159,13 @@
                         if (!user) throw new Error("Usuário não logado");
 
                         const payload = {
-                            id: user.id,
-                            first_name: this.state.user.name,
-                            height_cm: this.state.user.height,
-                            birth_date: this.state.user.birth_date,
-                            gender: this.state.user.gender,
-                            metabolic_goal: this.state.user.goal
+                            id:             user.id,
+                            first_name:     this.state.user.name,
+                            height_cm:      this.state.user.height,
+                            birth_date:     this.state.user.birth_date,
+                            gender:         this.state.user.gender,
+                            metabolic_goal: this.state.user.goal,
+                            training_level: this.state.user.training_level,
                         };
                         if (this.state.user.weight !== null) payload.weight_kg = this.state.user.weight;
 
