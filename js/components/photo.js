@@ -45,30 +45,42 @@
             }
 
             container.innerHTML = `
-                <div class="macro-summary mb-3" style="font-size: 0.9rem; text-align: center;">
-                    <strong>Seu Progresso de Composição Corporal</strong><br>
-                    <span style="color:var(--text-muted)">O espelho é o seu melhor avaliador.</span>
+                <!-- Gallery view (default) -->
+                <div id="gallery-view">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h4 style="font-family:var(--font-display); margin:0;">Galeria de Evolução</h4>
+                        <button id="btn-show-upload" style="width:40px;height:40px;border-radius:50%;background:var(--primary);border:none;color:#fff;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                    <div id="gallery-list" style="display:flex; flex-direction:column; gap:1.2rem;"></div>
                 </div>
 
-                <div style="background: var(--bg-dark); padding: 1rem; border-radius: 12px; border: 1px dashed var(--primary); text-align: center; margin-bottom: 2rem;" id="upload-box">
-                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem;"></i>
-                    <h5 style="margin-bottom: 0.5rem;">Adicionar Novas Fotos</h5>
-
-                    <div style="display:flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; margin-bottom: 1rem;">
-                        <input type="text" id="photo-title" class="form-control" placeholder='Ex: "Término da Quaresma" ou "Fim do Bulking"'>
-                        <input type="date" id="photo-date" class="form-control" style="padding: 0.5rem; color: var(--text-muted);" value="${new Date().toISOString().split('T')[0]}">
+                <!-- Upload form (hidden by default) -->
+                <div id="upload-view" style="display:none;">
+                    <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+                        <button id="btn-hide-upload" style="background:none;border:none;color:var(--text-muted);font-size:1.1rem;cursor:pointer;padding:0;">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h4 style="font-family:var(--font-display); margin:0;">Adicionar Fotos</h4>
                     </div>
 
-                    <button class="btn btn-primary" id="btn-upload-photo" style="padding: 0.5rem 2rem;">
-                        <i class="fa-solid fa-camera"></i> Escolher Fotos (Análise IA)
-                    </button>
-                    <input type="file" id="file-input" accept="image/*" multiple style="display: none;">
+                    <div style="background:var(--bg-dark); padding:1rem; border-radius:12px; border:1px dashed var(--primary); text-align:center;">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size:2rem; color:var(--primary); margin-bottom:0.5rem;"></i>
 
-                    <div id="photo-staging" style="display:none; margin-top: 1rem; text-align: left;"></div>
+                        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem; margin-bottom:1rem;">
+                            <input type="text" id="photo-title" class="form-control" placeholder='Ex: "Término da Quaresma" ou "Fim do Bulking"'>
+                            <input type="date" id="photo-date" class="form-control" style="padding:0.5rem; color:var(--text-muted);" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+
+                        <button class="btn btn-primary" id="btn-upload-photo" style="padding:0.5rem 2rem;">
+                            <i class="fa-solid fa-camera"></i> Escolher Fotos (Análise IA)
+                        </button>
+                        <input type="file" id="file-input" accept="image/*" multiple style="display:none;">
+
+                        <div id="photo-staging" style="display:none; margin-top:1rem; text-align:left;"></div>
+                    </div>
                 </div>
-
-                <h4 class="mt-4 mb-3" style="font-family: var(--font-display);">Galeria de Evolução</h4>
-                <div id="gallery-list" style="display:flex; flex-direction:column; gap:1.2rem;"></div>
             `;
 
             // Lightbox overlay with zoom + pan (single instance)
@@ -182,7 +194,26 @@
             return resp.json(); // { bf, weight, notes }
         },
 
+        _showUpload() {
+            document.getElementById('gallery-view').style.display = 'none';
+            document.getElementById('upload-view').style.display  = 'block';
+        },
+
+        _showGallery() {
+            document.getElementById('upload-view').style.display  = 'none';
+            document.getElementById('gallery-view').style.display = 'block';
+        },
+
         bindEvents() {
+            // Toggle upload form
+            document.getElementById('btn-show-upload').addEventListener('click', () => this._showUpload());
+            document.getElementById('btn-hide-upload').addEventListener('click', () => {
+                this.state.staging = null;
+                document.getElementById('file-input').value = '';
+                this.renderStaging();
+                this._showGallery();
+            });
+
             // Gallery lightbox — delegated click on any [data-zoom] image
             document.getElementById('gallery-list').addEventListener('click', (e) => {
                 const img = e.target.closest('[data-zoom]');
@@ -356,6 +387,7 @@
                     document.getElementById('file-input').value = '';
                     document.getElementById('btn-upload-photo').disabled = false;
                     this.renderStaging();
+                    this._showGallery();
                 });
             }
         },
