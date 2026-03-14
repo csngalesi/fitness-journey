@@ -71,13 +71,73 @@
                 <div id="gallery-list" style="display:flex; flex-direction:column; gap:1.2rem;"></div>
             `;
 
-            // Lightbox overlay (single instance)
+            // Lightbox overlay with zoom + pan (single instance)
             if (!document.getElementById('fj-lightbox')) {
                 const lb = document.createElement('div');
                 lb.id = 'fj-lightbox';
-                lb.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;cursor:zoom-out;justify-content:center;align-items:center;';
-                lb.innerHTML = '<img id="fj-lightbox-img" style="max-width:95vw;max-height:92vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.8);touch-action:pinch-zoom;">';
-                lb.addEventListener('click', () => { lb.style.display = 'none'; });
+                lb.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;justify-content:center;align-items:center;user-select:none;overflow:hidden;';
+                lb.innerHTML = '<img id="fj-lightbox-img" style="max-width:95vw;max-height:92vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.8);cursor:zoom-in;transform-origin:center;will-change:transform;">';
+
+                const img = lb.querySelector('#fj-lightbox-img');
+                const SCALES = [1, 2, 3.5];
+                let scale = 1, tx = 0, ty = 0, drag = null, moved = false;
+
+                function applyT() {
+                    img.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+                    img.style.cursor = scale > 1 ? 'grab' : 'zoom-in';
+                }
+
+                // Open (called externally) — resets state
+                lb._open = (url) => {
+                    scale = 1; tx = 0; ty = 0;
+                    img.src = url;
+                    img.style.transform = '';
+                    img.style.cursor = 'zoom-in';
+                    lb.style.display = 'flex';
+                };
+
+                // Click image: cycle zoom levels
+                img.addEventListener('click', (e) => {
+                    if (moved) { moved = false; return; }
+                    e.stopPropagation();
+                    const i = SCALES.indexOf(scale);
+                    scale = SCALES[(i + 1) % SCALES.length];
+                    if (scale === 1) { tx = 0; ty = 0; }
+                    applyT();
+                });
+
+                // Mouse drag to pan when zoomed
+                lb.addEventListener('mousedown', (e) => {
+                    if (e.target !== img || scale <= 1) return;
+                    drag = { sx: e.clientX - tx, sy: e.clientY - ty };
+                    moved = false;
+                    img.style.cursor = 'grabbing';
+                    e.preventDefault();
+                });
+                lb.addEventListener('mousemove', (e) => {
+                    if (!drag) return;
+                    const nx = e.clientX - drag.sx, ny = e.clientY - drag.sy;
+                    if (Math.abs(nx - tx) > 3 || Math.abs(ny - ty) > 3) moved = true;
+                    tx = nx; ty = ny;
+                    applyT();
+                });
+                lb.addEventListener('mouseup', () => { drag = null; applyT(); });
+
+                // Scroll wheel zoom
+                lb.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    scale = Math.min(6, Math.max(1, scale * (e.deltaY < 0 ? 1.15 : 0.87)));
+                    if (scale <= 1.05) { scale = 1; tx = 0; ty = 0; }
+                    applyT();
+                }, { passive: false });
+
+                // Click dark background: close
+                lb.addEventListener('click', (e) => {
+                    if (e.target === img) return;
+                    scale = 1; tx = 0; ty = 0;
+                    lb.style.display = 'none';
+                });
+
                 document.body.appendChild(lb);
             }
 
@@ -127,9 +187,7 @@
             document.getElementById('gallery-list').addEventListener('click', (e) => {
                 const img = e.target.closest('[data-zoom]');
                 if (!img) return;
-                const lb = document.getElementById('fj-lightbox');
-                document.getElementById('fj-lightbox-img').src = img.dataset.zoom;
-                lb.style.display = 'flex';
+                document.getElementById('fj-lightbox')._open(img.dataset.zoom);
             });
 
             const btnUpload = document.getElementById('btn-upload-photo');
