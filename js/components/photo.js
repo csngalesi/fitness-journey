@@ -78,8 +78,23 @@
                         </button>
                         <input type="file" id="file-input" accept="image/*" multiple style="display:none;">
 
+                        <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--glass-border);">
+                            <button class="btn" id="btn-bulk-import" style="width:100%;background:transparent;border:1px solid var(--glass-border);color:var(--text-muted);padding:0.5rem;">
+                                <i class="fa-solid fa-folder-open"></i> Importar Histórico (pasta de fotos)
+                            </button>
+                            <input type="file" id="bulk-file-input" accept="image/*" multiple webkitdirectory style="display:none;">
+                        </div>
+
                         <div id="photo-staging" style="display:none; margin-top:1rem; text-align:left;"></div>
                     </div>
+                </div>
+
+                <!-- Bulk import progress view -->
+                <div id="bulk-view" style="display:none;">
+                    <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+                        <h4 style="font-family:var(--font-display); margin:0;">Importação em Massa</h4>
+                    </div>
+                    <div id="bulk-progress"></div>
                 </div>
             `;
 
@@ -194,6 +209,131 @@
             return resp.json(); // { bf, weight, notes }
         },
 
+        _showBulk() {
+            document.getElementById('upload-view').style.display  = 'none';
+            document.getElementById('gallery-view').style.display = 'none';
+            document.getElementById('bulk-view').style.display    = 'block';
+        },
+
+        _parseDateFromFilename(filename) {
+            // IMG-20221128-WA0063.jpg → 2022-11-28
+            const m = filename.match(/(\d{4})(\d{2})(\d{2})/);
+            if (m && parseInt(m[1]) >= 2000 && parseInt(m[1]) <= 2035) {
+                return `${m[1]}-${m[2]}-${m[3]}`;
+            }
+            return new Date().toISOString().split('T')[0];
+        },
+
+        _renderBulkProgress(groups) {
+            const el = document.getElementById('bulk-progress');
+            if (!el) return;
+            const allDone  = groups.every(g => g.status === 'done' || g.status === 'error');
+            const doneCount = groups.filter(g => g.status === 'done').length;
+
+            const rows = groups.map(g => {
+                let s = '';
+                if (g.status === 'pending')   s = `<span style="color:var(--text-muted);font-size:.78rem;">Aguardando</span>`;
+                if (g.status === 'analyzing') s = `<span style="color:var(--primary-light);font-size:.78rem;"><i class="fa-solid fa-robot fa-bounce"></i> foto ${g.current}/${g.total}</span>`;
+                if (g.status === 'uploading') s = `<span style="color:var(--primary-light);font-size:.78rem;"><i class="fa-solid fa-cloud-arrow-up fa-bounce"></i> salvando</span>`;
+                if (g.status === 'done')      s = `<span style="color:#4ade80;font-size:.78rem;"><i class="fa-solid fa-check"></i> ${g.avgBf != null ? g.avgBf+'% BF' : '—'}${g.avgWeight != null ? ' · '+g.avgWeight+'kg' : ''}</span>`;
+                if (g.status === 'error')     s = `<span style="color:var(--primary);font-size:.78rem;"><i class="fa-solid fa-xmark"></i> erro</span>`;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;border-bottom:1px solid var(--glass-border);">
+                    <div>
+                        <span style="font-size:.85rem;font-weight:600;color:var(--text-main);">${g.date}</span>
+                        <span style="font-size:.72rem;color:var(--text-muted);margin-left:.4rem;">${g.total} foto(s)</span>
+                    </div>
+                    ${s}
+                </div>`;
+            }).join('');
+
+            el.innerHTML = `
+                <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:.75rem;">
+                    ${allDone
+                        ? `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> Concluído — ${doneCount} de ${groups.length} grupos salvos`
+                        : `<i class="fa-solid fa-spinner fa-spin" style="color:var(--primary);"></i> Processando ${groups.length} grupos de datas...`}
+                </div>
+                <div style="max-height:55vh;overflow-y:auto;">${rows}</div>
+                ${allDone ? `<button class="btn btn-primary mt-3" id="btn-bulk-done" style="width:100%;padding:.8rem;"><i class="fa-solid fa-images"></i> Ver Galeria</button>` : ''}
+            `;
+            if (allDone) {
+                document.getElementById('btn-bulk-done').addEventListener('click', () => this.render());
+            }
+        },
+
+        async _bulkImport(files) {
+            // Group files by date parsed from filename
+            const grouped = {};
+            for (const file of files) {
+                const date = this._parseDateFromFilename(file.name);
+                if (!grouped[date]) grouped[date] = [];
+                grouped[date].push(file);
+            }
+
+            const groups = Object.keys(grouped).sort().map(date => ({
+                date, files: grouped[date], status: 'pending',
+                current: 0, total: grouped[date].length, avgBf: null, avgWeight: null,
+            }));
+
+            this._showBulk();
+            this._renderBulkProgress(groups);
+
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+            for (const group of groups) {
+                group.status = 'analyzing';
+                this._renderBulkProgress(groups);
+
+                const results = [];
+                for (const file of group.files) {
+                    group.current++;
+                    this._renderBulkProgress(groups);
+                    try {
+                        const { base64, mimeType } = await this._resizeImage(file);
+                        const result = await this._analyzeImage(base64, mimeType);
+                        results.push({ file, bf: result.bf, weight: result.weight });
+                    } catch {
+                        results.push({ file, bf: null, weight: null });
+                    }
+                }
+
+                group.status = 'uploading';
+                this._renderBulkProgress(groups);
+
+                try {
+                    const publicUrls = [];
+                    for (const r of results) {
+                        const ext  = r.file.name.split('.').pop();
+                        const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+                        const { error } = await window.supabaseClient.storage.from('evolution_photos').upload(path, r.file);
+                        if (!error) {
+                            const { data: u } = window.supabaseClient.storage.from('evolution_photos').getPublicUrl(path);
+                            publicUrls.push(u.publicUrl);
+                        }
+                    }
+
+                    const bfs = results.map(r => r.bf).filter(v => v != null);
+                    const wts = results.map(r => r.weight).filter(v => v != null);
+                    const avgBf     = bfs.length ? parseFloat((bfs.reduce((a,b)=>a+b,0)/bfs.length).toFixed(1)) : null;
+                    const avgWeight = wts.length ? parseFloat((wts.reduce((a,b)=>a+b,0)/wts.length).toFixed(1)) : null;
+
+                    await window.supabaseClient.from('evolution_logs').insert([{
+                        user_id: user.id, log_date: group.date,
+                        title: `Importação ${group.date}`,
+                        average_bf: avgBf, average_weight: avgWeight, photos_urls: publicUrls,
+                    }]);
+
+                    group.status   = 'done';
+                    group.avgBf    = avgBf;
+                    group.avgWeight = avgWeight;
+                } catch (err) {
+                    console.error(`[bulk] ${group.date}:`, err);
+                    group.status = 'error';
+                }
+
+                this._renderBulkProgress(groups);
+            }
+        },
+
         _showUpload() {
             document.getElementById('gallery-view').style.display = 'none';
             document.getElementById('upload-view').style.display  = 'block';
@@ -219,6 +359,15 @@
                 const img = e.target.closest('[data-zoom]');
                 if (!img) return;
                 document.getElementById('fj-lightbox')._open(img.dataset.zoom);
+            });
+
+            // Bulk import
+            document.getElementById('btn-bulk-import').addEventListener('click', () =>
+                document.getElementById('bulk-file-input').click()
+            );
+            document.getElementById('bulk-file-input').addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length > 0) this._bulkImport(files);
             });
 
             const btnUpload = document.getElementById('btn-upload-photo');
