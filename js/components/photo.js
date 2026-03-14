@@ -71,6 +71,16 @@
                 <div id="gallery-list" style="display:flex; flex-direction:column; gap:1.2rem;"></div>
             `;
 
+            // Lightbox overlay (single instance)
+            if (!document.getElementById('fj-lightbox')) {
+                const lb = document.createElement('div');
+                lb.id = 'fj-lightbox';
+                lb.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;cursor:zoom-out;justify-content:center;align-items:center;';
+                lb.innerHTML = '<img id="fj-lightbox-img" style="max-width:95vw;max-height:92vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.8);touch-action:pinch-zoom;">';
+                lb.addEventListener('click', () => { lb.style.display = 'none'; });
+                document.body.appendChild(lb);
+            }
+
             this.bindEvents();
             this.renderGallery();
         },
@@ -113,6 +123,15 @@
         },
 
         bindEvents() {
+            // Gallery lightbox — delegated click on any [data-zoom] image
+            document.getElementById('gallery-list').addEventListener('click', (e) => {
+                const img = e.target.closest('[data-zoom]');
+                if (!img) return;
+                const lb = document.getElementById('fj-lightbox');
+                document.getElementById('fj-lightbox-img').src = img.dataset.zoom;
+                lb.style.display = 'flex';
+            });
+
             const btnUpload = document.getElementById('btn-upload-photo');
             const fileInput = document.getElementById('file-input');
 
@@ -310,7 +329,7 @@
                     <div style="display:grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 2px; background: #000;">
                         ${entry.images.map(img => `
                             <div style="aspect-ratio: 1/1; overflow:hidden;">
-                                <img src="${img.url}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.9;" alt="Evolução">
+                                <img src="${img.url}" data-zoom="${img.url}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.9; cursor:zoom-in;" alt="Evolução">
                             </div>
                         `).join('')}
                     </div>
