@@ -649,7 +649,6 @@
                 `;
             }).join('');
         },
-    };
 
         async _imageUrlToBase64(url) {
             const resp = await fetch(url);
