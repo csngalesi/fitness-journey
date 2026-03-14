@@ -362,8 +362,8 @@
                     const { action, id, url } = btn.dataset;
                     if (action === 'delete-photo')  await this._deletePhoto(id, url);
                     else if (action === 'delete-record') await this._deleteRecord(id);
-                    else if (action === 'edit-record')   this._editRecord(id);
-                    else if (action === 'cancel-edit')   this._cancelEdit(id);
+                    else if (action === 'edit-record')   this._editRecord(btn);
+                    else if (action === 'cancel-edit')   this._cancelEdit(btn);
                     else if (action === 'save-edit')     await this._saveEditRecord(id);
                     else if (action === 'rerun-bf')      await this._rerunBF(id);
                     return;
@@ -572,7 +572,7 @@
                 const gridCols   = Math.min(imageCount, 3);
 
                 return `
-                <div style="background:var(--bg-dark); border-radius:12px; overflow:hidden; border:1px solid var(--glass-border);">
+                <div data-entry-id="${entry.id}" style="background:var(--bg-dark); border-radius:12px; overflow:hidden; border:1px solid var(--glass-border);">
                     <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--glass-border); display:flex; justify-content: space-between; align-items: center; gap:8px;">
                         <div style="min-width:0;">
                             <strong style="color:var(--text-main); display:block; margin-bottom: 0.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${entry.title || 'Avaliação Física'}</strong>
@@ -610,7 +610,7 @@
                     </div>
 
                     <!-- Inline edit form (hidden by default) -->
-                    <div id="edit-form-${entry.id}" style="display:none; padding:1rem; border-top:1px solid var(--glass-border); background:var(--bg-card);">
+                    <div class="entry-edit-form" id="edit-form-${entry.id}" style="display:none; padding:1rem; border-top:1px solid var(--glass-border); background:var(--bg-card);">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.5rem;">
                             <div style="grid-column:1/-1;">
                                 <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:3px;">Título</label>
@@ -692,18 +692,23 @@
             this.renderGallery();
         },
 
-        _editRecord(entryId) {
-            const form = document.getElementById('edit-form-' + entryId);
-            if (form) form.style.display = 'block';
+        _editRecord(btn) {
+            const card = btn.closest('[data-entry-id]');
+            const form = card && card.querySelector('.entry-edit-form');
+            if (form) {
+                form.style.display = 'block';
+                setTimeout(() => form.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+            }
         },
 
-        _cancelEdit(entryId) {
-            const form = document.getElementById('edit-form-' + entryId);
+        _cancelEdit(btn) {
+            const card = btn.closest('[data-entry-id]');
+            const form = card && card.querySelector('.entry-edit-form');
             if (form) form.style.display = 'none';
         },
 
         async _saveEditRecord(entryId) {
-            const entry = this.state.entries.find(e => e.id === entryId);
+            const entry = this.state.entries.find(e => String(e.id) === String(entryId));
             if (!entry) return;
             const title  = document.getElementById('ef-title-'  + entryId)?.value.trim() || 'Avaliação Física';
             const date   = document.getElementById('ef-date-'   + entryId)?.value;
