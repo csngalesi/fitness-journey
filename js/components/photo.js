@@ -31,6 +31,7 @@
 
                     if (logsRes.data) {
                         this.state.entries = logsRes.data.map(log => ({
+                            id:     log.id,
                             title:  log.title,
                             date:   log.log_date,
                             bf:     log.average_bf,
@@ -354,11 +355,21 @@
                 this._showGallery();
             });
 
-            // Gallery lightbox — delegated click on any [data-zoom] image
-            document.getElementById('gallery-list').addEventListener('click', (e) => {
-                const img = e.target.closest('[data-zoom]');
-                if (!img) return;
-                document.getElementById('fj-lightbox')._open(img.dataset.zoom);
+            // Gallery — delegated click: action buttons first, then lightbox
+            document.getElementById('gallery-list').addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (btn) {
+                    const { action, id, url } = btn.dataset;
+                    if (action === 'delete-photo')  await this._deletePhoto(id, url);
+                    else if (action === 'delete-record') await this._deleteRecord(id);
+                    else if (action === 'edit-record')   this._editRecord(id);
+                    else if (action === 'cancel-edit')   this._cancelEdit(id);
+                    else if (action === 'save-edit')     await this._saveEditRecord(id);
+                    else if (action === 'rerun-bf')      await this._rerunBF(id);
+                    return;
+                }
+                const imgEl = e.target.closest('[data-zoom]');
+                if (imgEl) document.getElementById('fj-lightbox')._open(imgEl.dataset.zoom);
             });
 
             // Bulk import
@@ -549,6 +560,11 @@
                 return;
             }
 
+            const iconBtn = (action, id, icon, title, extra = '') =>
+                `<button data-action="${action}" data-id="${id}" ${extra} title="${title}"
+                    style="background:rgba(255,255,255,0.08); border:none; color:var(--text-muted); border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center;">
+                    <i class="fa-solid fa-${icon}"></i></button>`;
+
             list.innerHTML = this.state.entries.map(entry => {
                 const avgBf     = entry.bf     != null ? entry.bf     : '?';
                 const avgWeight = entry.weight != null ? entry.weight : '?';
@@ -557,37 +573,183 @@
 
                 return `
                 <div style="background:var(--bg-dark); border-radius:12px; overflow:hidden; border:1px solid var(--glass-border);">
-                    <div style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display:flex; justify-content: space-between; align-items: start;">
-                        <div>
-                            <strong style="color:var(--text-main); display:block; margin-bottom: 0.2rem;">${entry.title || 'Avaliação Física'}</strong>
-                            <span style="color: var(--primary); font-size:0.8rem;"><i class="fa-regular fa-calendar" style="margin-right: 3px;"></i> ${entry.date}</span>
+                    <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--glass-border); display:flex; justify-content: space-between; align-items: center; gap:8px;">
+                        <div style="min-width:0;">
+                            <strong style="color:var(--text-main); display:block; margin-bottom: 0.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${entry.title || 'Avaliação Física'}</strong>
+                            <span style="color: var(--primary); font-size:0.78rem;"><i class="fa-regular fa-calendar" style="margin-right: 3px;"></i>${entry.date}</span>
                         </div>
-                        <span style="font-size: 0.8rem; color: var(--text-muted); padding-top: 2px;">${imageCount} foto(s)</span>
+                        <div style="display:flex; gap:5px; flex-shrink:0;">
+                            ${iconBtn('rerun-bf',      entry.id, 'robot',  'Re-analisar BF com IA')}
+                            ${iconBtn('edit-record',   entry.id, 'pencil', 'Editar registro')}
+                            ${iconBtn('delete-record', entry.id, 'trash',  'Excluir registro')}
+                        </div>
                     </div>
 
                     <div style="display:grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 2px; background: #000;">
                         ${entry.images.map(img => `
-                            <div style="aspect-ratio: 1/1; overflow:hidden;">
+                            <div style="position:relative; aspect-ratio: 1/1; overflow:hidden;">
                                 <img src="${img.url}" data-zoom="${img.url}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.9; cursor:zoom-in;" alt="Evolução">
+                                <button data-action="delete-photo" data-id="${entry.id}" data-url="${img.url}"
+                                    style="position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.65); color:#fff; border:none; border-radius:50%; width:26px; height:26px; cursor:pointer; font-size:11px; display:flex; align-items:center; justify-content:center; padding:0;">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
                             </div>
                         `).join('')}
                     </div>
 
-                    <div style="padding: 1rem; background: var(--bg-card); display:flex; justify-content: space-around; font-size: 0.9rem;">
+                    <div style="padding: 0.75rem 1rem; background: var(--bg-card); display:flex; justify-content: space-around; font-size: 0.9rem;">
                         <div style="text-align:center;">
-                            <div style="color:var(--text-muted); font-size: 0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.2rem;">Média BF</div>
+                            <div style="color:var(--text-muted); font-size: 0.72rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.2rem;">Média BF</div>
                             <strong><i class="fa-solid fa-percent" style="color:var(--primary); font-size:0.8rem; margin-right:3px;"></i>${avgBf}${avgBf !== '?' ? '%' : ''}</strong>
                         </div>
                         <div style="width: 1px; background: var(--glass-border);"></div>
                         <div style="text-align:center;">
-                            <div style="color:var(--text-muted); font-size: 0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.2rem;">Média Peso</div>
+                            <div style="color:var(--text-muted); font-size: 0.72rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.2rem;">Média Peso</div>
                             <strong><i class="fa-solid fa-weight-scale" style="color:var(--primary); font-size:0.8rem; margin-right:3px;"></i>${avgWeight}${avgWeight !== '?' ? 'kg' : ''}</strong>
+                        </div>
+                    </div>
+
+                    <!-- Inline edit form (hidden by default) -->
+                    <div id="edit-form-${entry.id}" style="display:none; padding:1rem; border-top:1px solid var(--glass-border); background:var(--bg-card);">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.5rem;">
+                            <div style="grid-column:1/-1;">
+                                <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:3px;">Título</label>
+                                <input type="text" id="ef-title-${entry.id}" value="${(entry.title || '').replace(/"/g,'&quot;')}"
+                                    style="width:100%; box-sizing:border-box; padding:5px 8px; border-radius:6px; background:var(--bg-dark); border:1px solid var(--glass-border); color:var(--text-main); font-size:0.82rem;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:3px;">Data</label>
+                                <input type="date" id="ef-date-${entry.id}" value="${entry.date}"
+                                    style="width:100%; box-sizing:border-box; padding:5px 8px; border-radius:6px; background:var(--bg-dark); border:1px solid var(--glass-border); color:var(--text-main); font-size:0.82rem;">
+                            </div>
+                            <div></div>
+                            <div>
+                                <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:3px;">BF %</label>
+                                <input type="number" id="ef-bf-${entry.id}" value="${entry.bf ?? ''}" step="0.1"
+                                    style="width:100%; box-sizing:border-box; padding:5px 8px; border-radius:6px; background:var(--bg-dark); border:1px solid var(--glass-border); color:var(--text-main); font-size:0.82rem;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:3px;">Peso kg</label>
+                                <input type="number" id="ef-weight-${entry.id}" value="${entry.weight ?? ''}" step="0.1"
+                                    style="width:100%; box-sizing:border-box; padding:5px 8px; border-radius:6px; background:var(--bg-dark); border:1px solid var(--glass-border); color:var(--text-main); font-size:0.82rem;">
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:0.5rem;">
+                            <button data-action="save-edit" data-id="${entry.id}"
+                                style="flex:1; padding:0.5rem; background:var(--primary); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+                                <i class="fa-solid fa-floppy-disk"></i> Salvar
+                            </button>
+                            <button data-action="cancel-edit" data-id="${entry.id}"
+                                style="flex:1; padding:0.5rem; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); border-radius:6px; cursor:pointer; font-size:0.82rem;">
+                                Cancelar
+                            </button>
                         </div>
                     </div>
                 </div>
                 `;
             }).join('');
-        }
+        },
+    };
+
+        async _imageUrlToBase64(url) {
+            const resp = await fetch(url);
+            const blob = await resp.blob();
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve({ base64: reader.result.split(',')[1], mimeType: blob.type || 'image/jpeg' });
+                reader.readAsDataURL(blob);
+            });
+        },
+
+        async _deletePhoto(entryId, photoUrl) {
+            if (!confirm('Remover esta foto do registro?')) return;
+            const entry = this.state.entries.find(e => e.id === entryId);
+            if (!entry) return;
+            const newUrls = entry.images.map(i => i.url).filter(u => u !== photoUrl);
+            const { error } = await window.supabaseClient.from('evolution_logs')
+                .update({ photos_urls: newUrls }).eq('id', entryId);
+            if (error) { alert('Erro ao remover foto: ' + error.message); return; }
+            try {
+                const match = photoUrl.match(/evolution_photos\/(.+)$/);
+                if (match) await window.supabaseClient.storage.from('evolution_photos').remove([match[1]]);
+            } catch (e) { console.warn('[photo] storage delete:', e); }
+            entry.images = entry.images.filter(i => i.url !== photoUrl);
+            this.renderGallery();
+        },
+
+        async _deleteRecord(entryId) {
+            if (!confirm('Excluir este registro e todas as fotos?')) return;
+            const entry = this.state.entries.find(e => e.id === entryId);
+            if (!entry) return;
+            for (const img of entry.images) {
+                try {
+                    const match = img.url.match(/evolution_photos\/(.+)$/);
+                    if (match) await window.supabaseClient.storage.from('evolution_photos').remove([match[1]]);
+                } catch (e) { console.warn('[photo] storage delete:', e); }
+            }
+            const { error } = await window.supabaseClient.from('evolution_logs').delete().eq('id', entryId);
+            if (error) { alert('Erro ao excluir: ' + error.message); return; }
+            this.state.entries = this.state.entries.filter(e => e.id !== entryId);
+            this.renderGallery();
+        },
+
+        _editRecord(entryId) {
+            const form = document.getElementById('edit-form-' + entryId);
+            if (form) form.style.display = 'block';
+        },
+
+        _cancelEdit(entryId) {
+            const form = document.getElementById('edit-form-' + entryId);
+            if (form) form.style.display = 'none';
+        },
+
+        async _saveEditRecord(entryId) {
+            const entry = this.state.entries.find(e => e.id === entryId);
+            if (!entry) return;
+            const title  = document.getElementById('ef-title-'  + entryId)?.value.trim() || 'Avaliação Física';
+            const date   = document.getElementById('ef-date-'   + entryId)?.value;
+            const bfVal  = document.getElementById('ef-bf-'     + entryId)?.value;
+            const wVal   = document.getElementById('ef-weight-' + entryId)?.value;
+            const bf     = bfVal ? parseFloat(bfVal)  : null;
+            const weight = wVal  ? parseFloat(wVal)   : null;
+            const { error } = await window.supabaseClient.from('evolution_logs')
+                .update({ title, log_date: date, average_bf: bf, average_weight: weight }).eq('id', entryId);
+            if (error) { alert('Erro ao salvar: ' + error.message); return; }
+            entry.title  = title;
+            entry.date   = date;
+            entry.bf     = bf;
+            entry.weight = weight;
+            this.renderGallery();
+        },
+
+        async _rerunBF(entryId) {
+            const entry = this.state.entries.find(e => e.id === entryId);
+            if (!entry || !entry.images.length) return;
+            const btn = document.querySelector(`[data-action="rerun-bf"][data-id="${entryId}"]`);
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+            try {
+                const results = [];
+                for (const img of entry.images) {
+                    try {
+                        const { base64, mimeType } = await this._imageUrlToBase64(img.url);
+                        results.push(await this._analyzeImage(base64, mimeType));
+                    } catch (e) { console.warn('[photo] rerun-bf:', e); }
+                }
+                const validBf     = results.map(r => r.bf).filter(v => v != null);
+                const validWeight = results.map(r => r.weight).filter(v => v != null);
+                const avgBf     = validBf.length     ? parseFloat((validBf.reduce((a,b)=>a+b,0)     / validBf.length).toFixed(1))     : null;
+                const avgWeight = validWeight.length ? parseFloat((validWeight.reduce((a,b)=>a+b,0) / validWeight.length).toFixed(1)) : null;
+                const { error } = await window.supabaseClient.from('evolution_logs')
+                    .update({ average_bf: avgBf, average_weight: avgWeight }).eq('id', entryId);
+                if (error) throw error;
+                entry.bf     = avgBf;
+                entry.weight = avgWeight;
+                this.renderGallery();
+            } catch (err) {
+                alert('Erro ao re-analisar: ' + err.message);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-robot"></i>'; }
+            }
+        },
     };
 
     window.PhotoModule = PhotoModule;
