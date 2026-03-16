@@ -298,9 +298,20 @@
             }).join('');
         },
 
+        toggleItems(id) {
+            const el = document.getElementById('meal-items-' + id);
+            const chevron = document.getElementById('meal-chevron-' + id);
+            if (!el) return;
+            const open = el.style.display !== 'none';
+            el.style.display = open ? 'none' : 'block';
+            if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+        },
+
         _mealCardHtml(m) {
-            const itemsHtml = m.items && m.items.length ? `
-                <div style="margin:0.6rem 0 0.4rem; border-top:1px solid var(--glass-border); padding-top:0.5rem;">
+            const hasItems = m.items && m.items.length > 0;
+
+            const itemsHtml = hasItems ? `
+                <div id="meal-items-${m.id}" style="display:none; margin:0.6rem 0 0.4rem; border-top:1px solid var(--glass-border); padding-top:0.5rem;">
                     ${m.items.map(it => `
                         <div style="display:flex; justify-content:space-between; font-size:0.75rem; padding:2px 0; color:var(--text-muted);">
                             <span>${it.name}</span>
@@ -309,16 +320,21 @@
                     `).join('')}
                 </div>` : '';
 
+            const clickHandler = hasItems ? `onclick="window.NutritionModule.toggleItems('${m.id}')" style="cursor:pointer;"` : '';
+            const chevron = hasItems
+                ? `<i id="meal-chevron-${m.id}" class="fa-solid fa-chevron-down" style="font-size:0.7rem; color:var(--text-muted); margin-left:4px; transition:transform .2s;"></i>`
+                : '';
+
             return `
-                <div style="background:var(--bg-dark); padding:1rem; border-radius:12px; border:1px solid var(--glass-border); margin-bottom:0.5rem;">
+                <div ${clickHandler} style="background:var(--bg-dark); padding:1rem; border-radius:12px; border:1px solid var(--glass-border); margin-bottom:0.5rem; ${hasItems ? 'cursor:pointer;' : ''}">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.3rem;">
-                        <strong style="color:var(--text-main); flex:1;">${m.title}</strong>
+                        <strong style="color:var(--text-main); flex:1;">${m.title}${chevron}</strong>
                         <div style="display:flex; align-items:center; gap:0.4rem; flex-shrink:0; margin-left:0.5rem;">
                             <span style="color:var(--primary); font-weight:bold;">${m.cals} kcal</span>
-                            <button onclick="window.NutritionModule.startEdit('${m.id}')" style="background:none;border:none;cursor:pointer;padding:3px 6px;color:var(--text-muted);font-size:0.8rem;line-height:1;" title="Editar">
+                            <button onclick="event.stopPropagation(); window.NutritionModule.startEdit('${m.id}')" style="background:none;border:none;cursor:pointer;padding:3px 6px;color:var(--text-muted);font-size:0.8rem;line-height:1;" title="Editar">
                                 <i class="fa-solid fa-pencil"></i>
                             </button>
-                            <button onclick="window.NutritionModule.deleteRecord('${m.id}')" style="background:none;border:none;cursor:pointer;padding:3px 6px;color:#ef4444;font-size:0.8rem;line-height:1;" title="Remover">
+                            <button onclick="event.stopPropagation(); window.NutritionModule.deleteRecord('${m.id}')" style="background:none;border:none;cursor:pointer;padding:3px 6px;color:#ef4444;font-size:0.8rem;line-height:1;" title="Remover">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
