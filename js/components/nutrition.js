@@ -80,6 +80,9 @@
                             <i class="fa-solid fa-microphone"></i>
                         </button>
                     </div>
+                    <button class="btn btn-secondary btn-block" id="btn-cancel-meal" style="margin-top:0.5rem; width:100%;">
+                        Cancelar
+                    </button>
                     <div id="ai-loading" style="display:none; text-align:center; margin-top:1rem; color:var(--primary-light);">
                         <i class="fa-solid fa-robot fa-bounce"></i> Analisando e Salvando...
                     </div>
@@ -93,6 +96,18 @@
             this.renderMeals();
         },
 
+        _showForm() {
+            document.getElementById('nutrition-form').style.display = 'block';
+            document.getElementById('meals-list').style.display = 'none';
+        },
+
+        _hideForm() {
+            document.getElementById('nutrition-form').style.display = 'none';
+            document.getElementById('meals-list').style.display = 'block';
+            this.state.editingId = null;
+            this._resetForm();
+        },
+
         bindEvents() {
             // Toggle form via + button in header
             document.getElementById('btn-add-meal')?.addEventListener('click', () => {
@@ -100,14 +115,16 @@
                 if (!form) return;
                 const isOpen = form.style.display !== 'none';
                 if (isOpen) {
-                    form.style.display = 'none';
-                    this._resetForm();
+                    this._hideForm();
                 } else {
-                    this.state.editingId = null;
                     this._resetForm();
-                    form.style.display = 'block';
+                    this._showForm();
                     document.getElementById('meal-desc')?.focus();
                 }
+            });
+
+            document.getElementById('btn-cancel-meal')?.addEventListener('click', () => {
+                this._hideForm();
             });
 
             const btnSave = document.getElementById('btn-save-meal');
@@ -181,8 +198,7 @@
                         this.state.meals.unshift({ id: data.id, title, date, desc: displayDesc, fullDesc: desc, isFullDay, items, cals, pro, carb, fat });
                     }
 
-                    document.getElementById('nutrition-form').style.display = 'none';
-                    this._resetForm();
+                    this._hideForm();
                     this.renderMeals();
                 } catch (err) {
                     alert("Erro ao salvar refeição: " + err.message);
@@ -198,8 +214,6 @@
             if (!meal) return;
             this.state.editingId = id;
 
-            const form = document.getElementById('nutrition-form');
-            form.style.display = 'block';
             document.getElementById('log-title').value = meal.title || '';
             document.getElementById('log-date').value = meal.date || '';
             const editText = (meal.fullDesc && meal.fullDesc !== meal.desc)
@@ -211,7 +225,23 @@
             const btn = document.getElementById('btn-save-meal');
             if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar Alterações';
 
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            this._showForm();
+            document.getElementById('nutrition-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+
+        async deleteRecord(id) {
+            if (!confirm('Remover este registro?')) return;
+            try {
+                const { error } = await window.supabaseClient
+                    .from('nutrition_logs')
+                    .delete()
+                    .eq('id', id);
+                if (error) throw error;
+                this.state.meals = this.state.meals.filter(m => m.id !== id);
+                this.renderMeals();
+            } catch (err) {
+                alert('Erro ao remover: ' + err.message);
+            }
         },
 
         _resetForm() {
@@ -289,6 +319,9 @@
                             <span style="color:var(--primary); font-weight:bold;">${m.cals} kcal</span>
                             <button onclick="window.NutritionModule.startEdit('${m.id}')" style="background:none;border:none;cursor:pointer;padding:3px 6px;color:var(--text-muted);font-size:0.8rem;line-height:1;" title="Editar">
                                 <i class="fa-solid fa-pencil"></i>
+                            </button>
+                            <button onclick="window.NutritionModule.deleteRecord('${m.id}')" style="background:none;border:none;cursor:pointer;padding:3px 6px;color:#ef4444;font-size:0.8rem;line-height:1;" title="Remover">
+                                <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
                     </div>
