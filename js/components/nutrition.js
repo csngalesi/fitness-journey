@@ -202,7 +202,10 @@
             form.style.display = 'block';
             document.getElementById('log-title').value = meal.title || '';
             document.getElementById('log-date').value = meal.date || '';
-            document.getElementById('meal-desc').value = meal.fullDesc || meal.desc || '';
+            const editText = (meal.fullDesc && meal.fullDesc !== meal.desc)
+                ? meal.fullDesc
+                : (meal.desc || '').replace(/\.\.\.$/,'');
+            document.getElementById('meal-desc').value = editText;
             document.getElementById('is-full-day').checked = meal.isFullDay || false;
 
             const btn = document.getElementById('btn-save-meal');
