@@ -97,7 +97,7 @@
                             </div>
                             <div>
                                 <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Gênero Biológico</label>
-                                <select id="profile-gender" class="form-control" style="background-color: rgba(255, 255, 255, 0.05); color: #fff;">
+                                <select id="profile-gender" class="form-control">
                                     <option value="M" ${this.state.user.gender === 'M' ? 'selected' : ''}>Masculino</option>
                                     <option value="F" ${this.state.user.gender === 'F' ? 'selected' : ''}>Feminino</option>
                                 </select>
@@ -106,7 +106,7 @@
 
                         <div>
                             <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Alvo Metabólico Principal</label>
-                            <select id="profile-goal" class="form-control" style="background-color: rgba(255, 255, 255, 0.05); color: #fff;">
+                            <select id="profile-goal" class="form-control">
                                 <option value="lose" ${this.state.user.goal === 'lose' ? 'selected' : ''}>Cutting (Secar / Reduzir BF)</option>
                                 <option value="maintain" ${this.state.user.goal === 'maintain' ? 'selected' : ''}>Manutenção Estratégica</option>
                                 <option value="gain" ${this.state.user.goal === 'gain' ? 'selected' : ''}>Bulking Limpo (Ganho de Massa)</option>
@@ -116,7 +116,7 @@
 
                         <div>
                             <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Nível de Treino</label>
-                            <select id="profile-training-level" class="form-control" style="background-color: rgba(255, 255, 255, 0.05); color: #fff;">
+                            <select id="profile-training-level" class="form-control">
                                 <option value="beginner"     ${this.state.user.training_level === 'beginner'     ? 'selected' : ''}>Iniciante (&lt; 1 ano consistente)</option>
                                 <option value="intermediate" ${this.state.user.training_level === 'intermediate' ? 'selected' : ''}>Intermediário (1–4 anos)</option>
                                 <option value="advanced"     ${this.state.user.training_level === 'advanced'     ? 'selected' : ''}>Avançado (&gt; 4 anos)</option>
