@@ -22,10 +22,19 @@ module.exports = async function handler(req, res) {
     }
 
     const prompt = `Você é um nutricionista especializado em composição corporal.
-Analise a descrição de refeição abaixo e estime os macronutrientes totais do dia ou da refeição descrita.
+Analise a descrição de refeição abaixo e estime os macronutrientes de cada alimento/item individualmente e o total.
 Seja preciso com base em porções típicas brasileiras.
 Retorne APENAS JSON válido, sem markdown, sem explicações, exatamente neste formato:
-{"cals": number, "pro": number, "carb": number, "fat": number}
+{
+  "items": [
+    { "name": "nome do alimento/porção", "cals": number, "pro": number, "carb": number, "fat": number }
+  ],
+  "cals": number,
+  "pro": number,
+  "carb": number,
+  "fat": number
+}
+Os campos "cals", "pro", "carb", "fat" do nível raiz devem ser a soma dos itens.
 
 Refeição: ${description}`;
 
@@ -62,8 +71,17 @@ Refeição: ${description}`;
 
         const macros = JSON.parse(match[0]);
 
-        // Validate and sanitize
+        // Validate and sanitize totals
+        const items = Array.isArray(macros.items) ? macros.items.map(it => ({
+            name: String(it.name || ''),
+            cals: Math.round(Number(it.cals) || 0),
+            pro:  Math.round(Number(it.pro)  || 0),
+            carb: Math.round(Number(it.carb) || 0),
+            fat:  Math.round(Number(it.fat)  || 0),
+        })) : [];
+
         const result = {
+            items,
             cals: Math.round(Number(macros.cals) || 0),
             pro:  Math.round(Number(macros.pro)  || 0),
             carb: Math.round(Number(macros.carb) || 0),
