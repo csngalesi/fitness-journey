@@ -214,19 +214,13 @@
             if (workoutCard) workoutCard.addEventListener('click', () => this.navigateTo('workout-view'));
 
             // Bottom Nav
-            const navItems = document.querySelectorAll('.nav-item:not(.primary-action)');
+            const navItems = document.querySelectorAll('.nav-item');
             navItems.forEach(item => {
                 item.addEventListener('click', (e) => {
                     e.preventDefault();
                     navItems.forEach(nav => nav.classList.remove('active'));
                     item.classList.add('active');
                 });
-            });
-
-            const fab = document.querySelector('.primary-action');
-            if (fab) fab.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.navigateTo('nutrition-view');
             });
 
             // View routing
