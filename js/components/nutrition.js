@@ -25,7 +25,7 @@
             try {
                 const { data: { user } } = await window.supabaseClient.auth.getUser();
                 if (user) {
-                    const { data: logs, error } = await window.supabaseClient
+                    const { data: logs } = await window.supabaseClient
                         .from('nutrition_logs')
                         .select('*')
                         .eq('user_id', user.id)
@@ -43,62 +43,49 @@
                             carb: log.macros_json?.carb || 0,
                             fat: log.macros_json?.fat || 0
                         }));
-
-                        this.state.consumedCals = this.state.meals.reduce((sum, m) => sum + m.cals, 0);
-                        this.state.consumedPro = this.state.meals.reduce((sum, m) => sum + m.pro, 0);
-                        this.state.consumedCarb = this.state.meals.reduce((sum, m) => sum + m.carb, 0);
-                        this.state.consumedFat = this.state.meals.reduce((sum, m) => sum + m.fat, 0);
                     }
                 }
             } catch (err) {
                 console.warn("Could not fetch nutrition logs:", err);
             }
 
-            // Render basic layout
             container.innerHTML = `
-                <div class="macro-summary mb-3" style="font-size: 0.9rem;">
-                    <strong>Metas de Referência (Acompanhamento Pontual)</strong><br>
-                    <span style="color:var(--text-muted)">Cals: ${this.state.targetCals} | P: ${this.state.targetPro}g | C: ${this.state.targetCarb}g | F: ${this.state.targetFat}g</span>
+                <!-- Form panel (hidden by default, shown on + button) -->
+                <div id="nutrition-form" style="display:none; margin-bottom:1.5rem; padding-bottom:1.5rem; border-bottom:1px solid var(--glass-border);">
+                    <div class="form-group mb-2">
+                        <input type="text" id="log-title" class="form-control" placeholder='Ex: "Baseline Pré-Cutting" ou "Avião p/ Praia"'>
+                    </div>
+                    <div class="form-group mb-3">
+                        <input type="date" id="log-date" class="form-control" style="color: var(--text-muted);" value="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div class="form-group mt-3">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                            <label style="font-size:0.85rem; color:var(--text-muted); margin:0;">O que você comeu?</label>
+                            <label style="font-size:0.8rem; display:flex; align-items:center; gap:0.3rem;">
+                                <input type="checkbox" id="is-full-day" checked style="accent-color:var(--primary);">
+                                Dia Inteiro
+                            </label>
+                        </div>
+                        <textarea id="meal-desc" class="form-control" rows="3" placeholder='Ex: "Comi 3 ovos mexidos com 2 fatias de pão integral..."'></textarea>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                        <button class="btn btn-primary" style="flex:1;" id="btn-save-meal">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Calcular Macros
+                        </button>
+                        <button class="btn-icon" style="width:50px; flex-shrink:0;" title="Enviar Foto" onclick="alert('Feature placeholder: Abrir câmera para Visão Computacional')">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                        <button class="btn-icon" style="width:50px; flex-shrink:0;" title="Ditar Refeição" onclick="alert('Feature placeholder: Iniciar gravação de voz')">
+                            <i class="fa-solid fa-microphone"></i>
+                        </button>
+                    </div>
+                    <div id="ai-loading" style="display:none; text-align:center; margin-top:1rem; color:var(--primary-light);">
+                        <i class="fa-solid fa-robot fa-bounce"></i> Analisando e Salvando...
+                    </div>
                 </div>
 
-                <div class="form-group mt-4 mb-2">
-                    <input type="text" id="log-title" class="form-control" placeholder='Ex: "Baseline Pré-Cutting" ou "Avião p/ Praia"'>
-                </div>
-                
-                <div class="form-group mb-3">
-                    <input type="date" id="log-date" class="form-control" style="color: var(--text-muted);" value="${new Date().toISOString().split('T')[0]}">
-                </div>
-                
-                <div class="form-group mt-3">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <label style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">O que você comeu?</label>
-                        <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 0.3rem;">
-                            <input type="checkbox" id="is-full-day" checked style="accent-color: var(--primary);">
-                            Registro do Dia Inteiro
-                        </label>
-                    </div>
-                    <textarea id="meal-desc" class="form-control" rows="3" placeholder='Ex: "Comi 3 ovos mexidos com 2 fatias de pão integral e 1 fatia de queijo prato..."'></textarea>
-                </div>
-                
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
-                    <button class="btn btn-primary" style="flex: 1;" id="btn-save-meal">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Calcular Macros
-                    </button>
-                    <button class="btn-icon" style="width: 50px; flex-shrink: 0;" title="Enviar Foto" onclick="alert('Feature placeholder: Abrir câmera para Visão Computacional')">
-                        <i class="fa-solid fa-camera"></i>
-                    </button>
-                    <button class="btn-icon" style="width: 50px; flex-shrink: 0;" title="Ditar Refeição" onclick="alert('Feature placeholder: Iniciar gravação de voz')">
-                        <i class="fa-solid fa-microphone"></i>
-                    </button>
-                </div>
-                
-                <div id="ai-loading" style="display:none; text-align:center; margin-bottom:1.5rem; color: var(--primary-light);">
-                    <i class="fa-solid fa-robot fa-bounce"></i> Analisando e Salvando...
-                </div>
-                
-                <h4 class="mt-4 mb-3" style="font-family: var(--font-display);">Meu Diário</h4>
-                <div id="meals-list" style="display:flex; flex-direction:column; gap:0.5rem;">
-                </div>
+                <!-- Meals list -->
+                <div id="meals-list" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
             `;
 
             this.bindEvents();
@@ -106,7 +93,17 @@
         },
 
         bindEvents() {
+            // Toggle form via + button in header
+            document.getElementById('btn-add-meal')?.addEventListener('click', () => {
+                const form = document.getElementById('nutrition-form');
+                if (!form) return;
+                const isOpen = form.style.display !== 'none';
+                form.style.display = isOpen ? 'none' : 'block';
+                if (!isOpen) document.getElementById('meal-desc')?.focus();
+            });
+
             const btnSave = document.getElementById('btn-save-meal');
+            if (!btnSave) return;
             btnSave.addEventListener('click', async () => {
                 const title = document.getElementById('log-title').value.trim() || 'Sem Título (Registro Genérico)';
                 const date = document.getElementById('log-date').value;
@@ -124,7 +121,6 @@
                     const { data: { user } } = await window.supabaseClient.auth.getUser();
                     if (!user) throw new Error("Usuário não logado");
 
-                    // Real AI macro extraction via Gemini
                     const macroResp = await fetch('/api/extract-macros', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -134,10 +130,8 @@
                     if (!macroResp.ok) throw new Error(macroData.error || 'Erro na análise de macros pela IA');
                     const { cals, pro, carb, fat } = macroData;
                     const isFullDay = document.getElementById('is-full-day').checked;
-                    let displayDesc = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
+                    const displayDesc = desc.substring(0, 100) + (desc.length > 100 ? '...' : '');
 
-                    // Ensure profile row exists (nutrition_logs FK references profiles.id)
-                    // Use insert + ignore duplicate error (23505) instead of upsert ignoreDuplicates
                     const { error: profileErr } = await window.supabaseClient
                         .from('profiles')
                         .insert({ id: user.id, first_name: user.email?.split('@')[0] || 'user' });
@@ -145,11 +139,10 @@
                         throw new Error('Erro ao criar perfil base: ' + profileErr.message);
                     }
 
-                    // Format intended payload for Supabase insertion
                     const logObj = {
                         user_id: user.id,
                         log_date: date,
-                        title: title,
+                        title,
                         total_calories: cals,
                         macros_json: { pro, carb, fat },
                         meals_json: [{ isFullDay, desc: displayDesc }]
@@ -163,21 +156,11 @@
 
                     if (error) throw error;
 
-                    // Update local state dynamically without full reload
-                    this.state.meals.unshift({
-                        id: data.id,
-                        title,
-                        date,
-                        desc: displayDesc,
-                        cals, pro, carb, fat, isFullDay
-                    });
-                    this.state.consumedCals += cals;
-                    this.state.consumedPro += pro;
-                    this.state.consumedCarb += carb;
-                    this.state.consumedFat += fat;
+                    this.state.meals.unshift({ id: data.id, title, date, desc: displayDesc, cals, pro, carb, fat, isFullDay });
 
                     document.getElementById('log-title').value = '';
                     document.getElementById('meal-desc').value = '';
+                    document.getElementById('nutrition-form').style.display = 'none';
                     this.renderMeals();
                 } catch (err) {
                     alert("Erro ao salvar refeição: " + err.message);

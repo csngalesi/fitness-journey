@@ -201,7 +201,8 @@
             // Action cards
             document.querySelectorAll('.action-card').forEach(card => {
                 card.addEventListener('click', () => {
-                    if (card.classList.contains('photo'))    this.navigateTo('photo-view');
+                    if (card.classList.contains('diet'))         this.navigateTo('nutrition-view');
+                    else if (card.classList.contains('photo'))    this.navigateTo('photo-view');
                     else if (card.classList.contains('workout'))  this.navigateTo('workout-view');
                     else if (card.classList.contains('cardio'))   this.navigateTo('cardio-view');
                     else if (card.classList.contains('survival')) this.navigateTo('survival-view');

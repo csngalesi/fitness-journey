@@ -68,84 +68,18 @@
 
         <!-- ====== Dashboard View ====== -->
         <div id="dashboard-view">
-            <!-- SECTION: Nutrition Summary -->
+            <!-- SECTION: Quick Actions -->
             <section class="dashboard-section">
-                <div class="section-header">
-                    <h3>Nutrição <span class="badge badge-primary">Bulking</span></h3>
-                    <button class="btn-link">Diário <i class="fa-solid fa-chevron-right"></i></button>
-                </div>
-
-                <div class="card nutrition-card">
-                    <div class="calories-ring">
-                        <svg viewBox="0 0 100 100">
-                            <circle class="ring-bg" cx="50" cy="50" r="45"></circle>
-                            <circle class="ring-progress" cx="50" cy="50" r="45"
-                                style="stroke-dasharray: 282; stroke-dashoffset: 100;"></circle>
-                        </svg>
-                        <div class="ring-content">
-                            <span class="cals-number">1.250</span>
-                            <span class="cals-label">Restantes</span>
-                        </div>
-                    </div>
-
-                    <div class="macros-breakdown">
-                        <div class="macro-item pro">
-                            <div class="macro-header">
-                                <span>Proteína</span>
-                                <span>120 / 180g</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="fill" style="width: 66%"></div>
-                            </div>
-                        </div>
-                        <div class="macro-item carb">
-                            <div class="macro-header">
-                                <span>Carbo</span>
-                                <span>200 / 350g</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="fill" style="width: 57%"></div>
-                            </div>
-                        </div>
-                        <div class="macro-item fat">
-                            <div class="macro-header">
-                                <span>Gordura</span>
-                                <span>40 / 70g</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="fill" style="width: 57%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <button class="btn btn-primary btn-block mt-3" id="btn-goto-nutrition">
-                    <i class="fa-solid fa-utensils"></i> Registrar Refeição
-                </button>
-            </section>
-
-            <!-- SECTION: Workout Status -->
-            <section class="dashboard-section mt-5">
-                <div class="section-header">
-                    <h3>Treino de Hoje</h3>
-                </div>
-
-                <div class="card workout-card">
-                    <div class="workout-icon">
-                        <i class="fa-solid fa-dumbbell"></i>
-                    </div>
-                    <div class="workout-info">
-                        <h4>Treino A - Peito & Tríceps</h4>
-                        <p>Última vez: Há 4 dias</p>
-                    </div>
-                    <button class="btn-icon play-btn"><i class="fa-solid fa-play"></i></button>
-                </div>
-            </section>
-
-            <!-- SECTION: Quick Actions (Survival Guide) -->
-            <section class="dashboard-section mt-5">
                 <h3 class="mb-3">Ações Rápidas</h3>
                 <div class="action-grid">
+                    <button class="action-card diet">
+                        <i class="fa-solid fa-utensils"></i>
+                        <span>Dieta</span>
+                    </button>
+                    <button class="action-card workout">
+                        <i class="fa-solid fa-dumbbell"></i>
+                        <span>Treino</span>
+                    </button>
                     <button class="action-card survival">
                         <i class="fa-solid fa-person-running"></i>
                         <span>Survival Guide</span>
@@ -171,7 +105,7 @@
             <div class="section-header mt-3">
                 <button class="btn-icon" id="btn-back-dash"><i class="fa-solid fa-arrow-left"></i></button>
                 <h3>Diário Nutricional</h3>
-                <div style="width: 40px;"></div>
+                <button class="btn-icon" id="btn-add-meal" title="Adicionar refeição"><i class="fa-solid fa-plus"></i></button>
             </div>
 
             <div class="card mt-3">
