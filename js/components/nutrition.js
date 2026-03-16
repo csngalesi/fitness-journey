@@ -108,21 +108,19 @@
             this._resetForm();
         },
 
-        bindEvents() {
-            // Toggle form via + button in header
-            document.getElementById('btn-add-meal')?.addEventListener('click', () => {
-                const form = document.getElementById('nutrition-form');
-                if (!form) return;
-                const isOpen = form.style.display !== 'none';
-                if (isOpen) {
-                    this._hideForm();
-                } else {
-                    this._resetForm();
-                    this._showForm();
-                    document.getElementById('meal-desc')?.focus();
-                }
-            });
+        toggleForm() {
+            const form = document.getElementById('nutrition-form');
+            if (!form) return;
+            if (form.style.display !== 'none') {
+                this._hideForm();
+            } else {
+                this._resetForm();
+                this._showForm();
+                document.getElementById('meal-desc')?.focus();
+            }
+        },
 
+        bindEvents() {
             document.getElementById('btn-cancel-meal')?.addEventListener('click', () => {
                 this._hideForm();
             });
